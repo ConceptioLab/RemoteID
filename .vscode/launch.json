@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "g++",
+            "args": ["-o", "main", "main.cpp"],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run",
+            "type": "shell",
+            "command": "./main",
+            "dependsOn": "Build"
+        }
+    ]
+}
