@@ -4,8 +4,8 @@
         {
             "label": "Build",
             "type": "shell",
-            "command": "g++",
-            "args": ["-o", "main", "main.cpp"],
+            "command": "gcc",
+            "args": ["-I /usr/include/libnl3/", "mainnan.c"],
             "group": {
                 "kind": "build",
                 "isDefault": true
