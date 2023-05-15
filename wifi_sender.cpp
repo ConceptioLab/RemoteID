@@ -34,7 +34,7 @@ int main()
         return -1;
     }
 
-    if (nl_connect(nlSock, NETLINK_GENERIC) < 0)
+    if (genl_connect(nlSock) < 0)
     {
         std::cerr << "Failed to connect to generic netlink." << std::endl;
         nl_socket_free(nlSock);
@@ -77,13 +77,13 @@ int main()
         return -1;
     }
 
-    /* nla_put_string(nlMsg, WIFI_ATTR_BEACON, ssid.c_str());
+    /* nla_put_string(nlMsg, WIFI_ATTR_BEACON, ssid.c_str());*/
     nla_put_flag(nlMsg, 1);
     nla_put_u32(nlMsg, WIFI_ATTR_BEACON, frequency);
     uint32_t retrievedChannel = nla_get_u32(attr);
-    std::cout << retrievedChannel << std::endl; */
+    std::cout << retrievedChannel << std::endl; 
 
-    nla_put(nlMsg, WIFI_ATTR_BEACON, ssidLen, ssid.c_str());
+    //nla_put(nlMsg, WIFI_ATTR_BEACON, ssidLen, ssid.c_str());
 
     while (true)
     {
