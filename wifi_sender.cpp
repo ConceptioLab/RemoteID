@@ -24,7 +24,6 @@ enum
     __WIFI_CMD_AFTER_LAST,
     WIFI_CMD_MAX = __WIFI_CMD_AFTER_LAST - 1,
 };
-int wifi_channel = 6;
 
 int main()
 {
@@ -35,7 +34,7 @@ int main()
         return -1;
     }
 
-    if (genl_connect(nlSock) < 0)
+    if (nl_connect(nlSock, NETLINK_GENERIC) < 0)
     {
         std::cerr << "Failed to connect to generic netlink." << std::endl;
         nl_socket_free(nlSock);
@@ -57,12 +56,15 @@ int main()
         nl_socket_free(nlSock);
         return -1;
     }
-    nla_put_string(nlMsg, WIFI_ATTR_BEACON, "RemoteID");
 
-    std::string ssid = "RemoteID"; // Substitua "MeuSSID" pelo SSID desejado
+    const std::string ssid = "RemoteID"; // Substitua "MeuSSID" pelo SSID desejado
+    uint32_t frequency = 2437;              // Frequência em MHz, substitua pelo valor desejado
 
     int ssidLen = ssid.length();
     int attrLen = nla_total_size(ssidLen);
+
+    // Montagem da mensagem netlink
+    genlmsg_put(nlMsg, NL_AUTO_PID, NL_AUTO_SEQ, driverId, 0, NLM_F_REQUEST, WIFI_CMD_TRIGGER_BEACON, 0);
 
     nlmsg_reserve(nlMsg, 0, attrLen);
 
@@ -75,10 +77,16 @@ int main()
         return -1;
     }
 
+    /* nla_put_string(nlMsg, WIFI_ATTR_BEACON, ssid.c_str());
+    nla_put_flag(nlMsg, 1);
+    nla_put_u32(nlMsg, WIFI_ATTR_BEACON, frequency);
+    uint32_t retrievedChannel = nla_get_u32(attr);
+    std::cout << retrievedChannel << std::endl; */
+
+    nla_put(nlMsg, WIFI_ATTR_BEACON, ssidLen, ssid.c_str());
+
     while (true)
     {
-        nla_put_u32(nlMsg, WIFI_ATTR_BEACON, wifi_channel);
-        nla_put_string(nlMsg, WIFI_ATTR_BEACON, ssid.c_str());
 
         genlmsg_put(nlMsg, NL_AUTO_PID, NL_AUTO_SEQ, driverId, 0, NLM_F_REQUEST, WIFI_CMD_TRIGGER_BEACON, 0);
 
