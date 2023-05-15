@@ -3,9 +3,9 @@
     "tasks": [
         {
             "label": "Build",
-            "type": "shell",
+            "type": "bash",
             "command": "g++",
-            "args": ["-I /usr/include/libnl3/", "main", "mainnan.c"],
+            "args": ["main.c","-o", "main", "-I /usr/include/libnl3"],
             "group": {
                 "kind": "build",
                 "isDefault": true
@@ -13,7 +13,7 @@
         },
         {
             "label": "Run",
-            "type": "shell",
+            "type": "bash",
             "command": "./main",
             "dependsOn": "Build"
         }

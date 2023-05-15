@@ -1,6 +1,10 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+//Netlink
+#include <netlink/netlink.h>
+#include <netlink/cache.h>
+#include <netlink/route/link.h>
 
 // Definir estruturas de dados para representar as informações do drone
 struct DroneData {
