@@ -1,6 +1,5 @@
 output/
 .vscode/
-main.exe
 bluetooth
 wifi_sender
 main
