@@ -1,6 +1,6 @@
+*
+!/**/
+!*.*
+
 output/
-.vscode/
-bluetooth
-wifi_sender
-main
-blue
+.vscode/*
