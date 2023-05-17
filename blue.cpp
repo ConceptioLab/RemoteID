@@ -4,7 +4,7 @@
 
 int main() {
     // Endereço MAC do dispositivo remoto
-    const char* remoteAddress = "48:2c:a0:f9:71:c6";
+    const char* remoteAddress = "B8:27:EB:01:EE:3D";
 
     // Criação do socket Bluetooth
     int bSocket = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
