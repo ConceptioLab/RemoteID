@@ -1,43 +1,86 @@
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/rfcomm.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/hci_lib.h>
 
-int main() {
-    // Endereço MAC do dispositivo remoto
-    const char* remoteAddress = "B8:27:EB:01:EE:3D";
-
-    // Criação do socket Bluetooth
-    int bSocket = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-    if (bSocket < 0) {
-        perror("Failed to create Bluetooth socket");
+int main()
+{
+    int dev_id = hci_get_route(NULL);
+    int sock = hci_open_dev(dev_id);
+    if (sock < 0)
+    {
+        perror("Erro ao habilitar adaptador HCI");
         return -1;
     }
 
-    // Preenche a estrutura de endereço Bluetooth
-    struct sockaddr_rc addr = { 0 };
-    addr.rc_family = AF_BLUETOOTH;
-    addr.rc_channel = (uint8_t)1;  // Canal RFCOMM para comunicação Bluetooth
+    // Definir os parâmetros de advertising
+    struct hci_request request;
+    le_set_advertising_parameters_cp adv_params{};
+    memset(&request, 0, sizeof(request));
+    request.ogf = OGF_LE_CTL;
+    request.ocf = OCF_LE_SET_ADVERTISING_PARAMETERS;
+    request.cparam = &adv_params;
+    request.clen = LE_SET_ADVERTISING_PARAMETERS_CP_SIZE;
+    request.rparam = NULL;
+    request.rlen = 0;
 
-    // Converte o endereço MAC para uma estrutura de endereço Bluetooth
-    str2ba(remoteAddress, &addr.rc_bdaddr);
-
-    // Conecta ao dispositivo remoto
-    if (connect(bSocket, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-        perror("Failed to connect to remote device");
-        close(bSocket);
+    if (hci_send_req(sock, &request, 1000) < 0)
+    {
+        perror("Erro ao configurar parâmetros de advertising");
+        hci_close_dev(sock);
         return -1;
     }
 
-    // Dados a serem enviados
-    const char* data = "Hello, Bluetooth!";
+    // Definir os dados de advertising
+    struct hci_request adv_data_request;
+    le_set_advertising_data_cp adv_data{};
+    memset(&adv_data_request, 0, sizeof(adv_data_request));
+    adv_data_request.ogf = OGF_LE_CTL;
+    adv_data_request.ocf = OCF_LE_SET_ADVERTISING_DATA;
+    adv_data_request.cparam = &adv_data;
+    adv_data_request.clen = LE_SET_ADVERTISING_DATA_CP_SIZE;
+    adv_data_request.rparam = NULL;
+    adv_data_request.rlen = 0;
 
-    // Envia os dados pelo socket Bluetooth
-    if (write(bSocket, data, strlen(data)) < 0) {
-        perror("Failed to send data via Bluetooth");
+    uint8_t data[] = {
+        0x02, 0x01, 0x06,  // Flags: General Discoverable Mode, BR/EDR Not Supported
+        0x09, 0x09, 'H', 'e', 'l', 'l', 'o'  // Complete Local Name: "Hello"
+    };
+    uint8_t dataLength = sizeof(data);
+    memcpy(adv_data.data, data, dataLength);
+
+    if (hci_send_req(sock, &adv_data_request, 1000) < 0)
+    {
+        perror("Erro ao configurar dados de advertising");
+        hci_close_dev(sock);
+        return -1;
     }
 
-    // Fecha o socket Bluetooth
-    close(bSocket);
+    // Habilitar o advertising
+    uint8_t enable = 0x01;
+    if (hci_le_set_advertise_enable(sock, enable, 1000) < 0)
+    {
+        perror("Erro ao habilitar o advertising");
+        hci_close_dev(sock);
+        return -1;
+    }
+
+    printf("Advertising habilitado. Pressione Ctrl+C para encerrar.\n");
+
+    // Aguardar indefinidamente
+    while (1)
+    {
+        usleep(1000000);  // Aguardar 1 segundo
+    }
+
+    // Desabilitar o advertising antes de fechar o socket Bluetooth
+    enable = 0x00;
+    hci_le_set_advertise_enable(sock, enable, 1000);
+
+    // Fechar o socket Bluetooth
+    hci_close_dev(sock);
 
     return 0;
 }
