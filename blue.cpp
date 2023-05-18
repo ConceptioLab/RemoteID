@@ -69,11 +69,8 @@ int main()
 
     printf("Advertising habilitado. Pressione Ctrl+C para encerrar.\n");
 
-    // Aguardar indefinidamente
-    while (1)
-    {
-        usleep(1000000);  // Aguardar 1 segundo
-    }
+    // Aguardar o término do programa
+    pause();
 
     // Desabilitar o advertising antes de fechar o socket Bluetooth
     enable = 0x00;
