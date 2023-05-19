@@ -149,6 +149,7 @@ class TestAdvertisement(Advertisement):
         feature  =   [0x00]
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_manufacturer_data(company_id, type + id1 + id2 + id3 + rssi_at_1m + feature)
+        self.add_local_name("Perseu matou medusa")
 
 
 def register_ad_cb():
