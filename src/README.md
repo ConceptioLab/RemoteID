@@ -8,5 +8,3 @@
 *wifi_sender* ainda nao funciona.
 
 *remote.c* é uma cópia de advertizer.c, e será usado para testes com modificações de advertizer.c
-
-Tudo do opendroneid está para implementação futura.
