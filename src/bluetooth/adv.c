@@ -5,6 +5,9 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/param.h>
+#include <sys/resource.h>
+#include <pthread.h>
+#include <signal.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
@@ -14,6 +17,8 @@
 #include "opendroneid.c"
 #include "print_bt_features.h"
 
+#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
+
 #define BASIC_ID_POS_ZERO 0
 #define BASIC_ID_POS_ONE 1
 
@@ -21,12 +26,12 @@
 
 int device_descriptor = 0;
 
-static void fill_example_data(struct ODID_UAS_Data *uasData) {
+static void fill_example_data(struct ODID_UAS_Data *uasData)
+{
     uasData->BasicID[BASIC_ID_POS_ZERO].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
     uasData->BasicID[BASIC_ID_POS_ZERO].IDType = ODID_IDTYPE_SERIAL_NUMBER;
     char uas_id[] = "555555555555555555AB";
-    strncpy(uasData->BasicID[BASIC_ID_POS_ZERO].UASID, uas_id,
-            MINIMUM(sizeof(uas_id), sizeof(uasData->BasicID[BASIC_ID_POS_ZERO].UASID)));
+    strncpy(uasData->BasicID[BASIC_ID_POS_ZERO].UASID, uas_id, MINIMUM(sizeof(uas_id), sizeof(uasData->BasicID[BASIC_ID_POS_ZERO].UASID)));
 
     uasData->BasicID[BASIC_ID_POS_ONE].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
     uasData->BasicID[BASIC_ID_POS_ONE].IDType = ODID_IDTYPE_SPECIFIC_SESSION_ID;
@@ -40,25 +45,21 @@ static void fill_example_data(struct ODID_UAS_Data *uasData) {
     uasData->Auth[0].Length = 63;
     uasData->Auth[0].Timestamp = 28000000;
     char auth0_data[] = "15648975321685249";
-    memcpy(uasData->Auth[0].AuthData, auth0_data,
-           MINIMUM(sizeof(auth0_data), sizeof(uasData->Auth[0].AuthData)));
+    memcpy(uasData->Auth[0].AuthData, auth0_data, MINIMUM(sizeof(auth0_data), sizeof(uasData->Auth[0].AuthData)));
 
     uasData->Auth[1].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;
     uasData->Auth[1].DataPage = 1;
     char auth1_data[] = "36289078124690153452713";
-    memcpy(uasData->Auth[1].AuthData, auth1_data,
-           MINIMUM(sizeof(auth1_data), sizeof(uasData->Auth[1].AuthData)));
+    memcpy(uasData->Auth[1].AuthData, auth1_data, MINIMUM(sizeof(auth1_data), sizeof(uasData->Auth[1].AuthData)));
 
     uasData->Auth[2].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;
     uasData->Auth[2].DataPage = 2;
     char auth2_data[] = "12345678901234567890123";
-    memcpy(uasData->Auth[2].AuthData, auth2_data,
-           MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
+    memcpy(uasData->Auth[2].AuthData, auth2_data, MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
     char description[] = "Drone ID test flight---";
-    strncpy(uasData->SelfID.Desc, description,
-            MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
+    strncpy(uasData->SelfID.Desc, description,MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
@@ -79,7 +80,8 @@ static void fill_example_data(struct ODID_UAS_Data *uasData) {
             MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
 }
 
-static void fill_example_gps_data(struct ODID_UAS_Data *uasData) {
+static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
+{
     uasData->Location.Status = ODID_STATUS_AIRBORNE;
     uasData->Location.Direction = 361.f;
     uasData->Location.SpeedHorizontal = 0.0f;
@@ -97,7 +99,6 @@ static void fill_example_gps_data(struct ODID_UAS_Data *uasData) {
     uasData->Location.TSAccuracy = createEnumTimestampAccuracy(0.1f);
     uasData->Location.TimeStamp = 360.52f;
 }
-
 
 static int open_hci_device()
 {
@@ -308,7 +309,7 @@ int main()
 
     device_descriptor = open_hci_device();
     hci_reset(device_descriptor);
-    //Parar transmissao LE
+    // Parar transmissao LE
     hci_le_set_advertising_disable(device_descriptor);
 
     hci_le_read_local_supported_features(device_descriptor);
@@ -318,10 +319,10 @@ int main()
     hci_le_set_advertising_parameters(device_descriptor, 100);
     hci_le_set_random_address(device_descriptor, mac);
 
-    //Inicia o advertise LE
+    // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);
 
-    while (1) 
+    while (1)
     {
         hci_le_set_advertising_data(device_descriptor);
     }

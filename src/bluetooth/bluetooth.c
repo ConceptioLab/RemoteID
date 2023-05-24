@@ -266,9 +266,7 @@ static void hci_le_set_extended_advertising_parameters(int dd, uint8_t set, int 
 }
 
 // See hci_le_set_advertising_data for further details
-static void hci_le_set_extended_advertising_data(int dd, uint8_t set,
-                                                 const union ODID_Message_encoded *encoded,
-                                                 uint8_t msg_counter)
+static void hci_le_set_extended_advertising_data(int dd, uint8_t set, const union ODID_Message_encoded *encoded, uint8_t msg_counter)
 {
   uint8_t ogf = OGF_LE_CTL;    // Opcode Group Field. LE Controller Commands
   uint16_t ocf = 0x37;         // Opcode Command Field: LE Set Extended Advertising Data

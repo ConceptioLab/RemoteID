@@ -1,4 +1,12 @@
 # Arquivos
+
+*adv.c* funciona com o protocolo Remote ID zerado. Para criar um executável do caminho padrão use:
+```bash
+sudo gcc -o adv ./src/bluetooth/adv.c $(pkg-config --libs --cflags bluez) -lm
+```
+Lembre de ter bluez instalado em sua máquina.
+
+
 *beaconAdv.py* cria um AltBeacon Advertisement. Precisa de remodelar para o RemoteID.
 
 *advertizer.c* envia um advertise de teste, mas não beacon.
@@ -6,5 +14,3 @@
 *scan.c* é uma tentativa de scan em c para ver os dispositivos bluetooth.
 
 *wifi_sender* ainda nao funciona.
-
-*remote.c* é uma cópia de advertizer.c, e será usado para testes com modificações de advertizer.c
