@@ -59,7 +59,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
     char description[] = "Drone ID test flight---";
-    strncpy(uasData->SelfID.Desc, description,MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
+    strncpy(uasData->SelfID.Desc, description, MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
@@ -180,6 +180,10 @@ static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int l
     }
 }
 
+void printMACAddress(const uint8_t *mac) {
+    printf("%02X:%02X:%02X:%02X:%02X:%02X\n", mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
+}
+
 static void generate_random_mac_address(uint8_t *mac)
 {
     if (!mac)
@@ -189,6 +193,7 @@ static void generate_random_mac_address(uint8_t *mac)
         mac[i] = rand() % 255; // NOLINT(cert-msc50-cpp)
 
     mac[0] |= 0xC0; // set to Bluetooth Random Static Address, see https://www.novelbits.io/bluetooth-address-privacy-ble/ or section 1.3 of the Bluetooth specification (5.3)
+    printMACAddress(mac);
 }
 
 static void hci_reset(int dd)
@@ -209,6 +214,7 @@ static void hci_le_set_random_address(int dd, const uint8_t *mac)
 {
     if (!mac)
         return;
+
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
     uint16_t ocf = OCF_LE_SET_RANDOM_ADDRESS;
     uint8_t buf[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Random_Address:
@@ -299,6 +305,8 @@ static void hci_le_remove_advertising_set(int dd, uint8_t set)
 
 int main()
 {
+    // Registrar o manipulador de sinal SIGINT
+    device_descriptor = open_hci_device();
 
     uint8_t mac[6] = {0};
     generate_random_mac_address(mac);
@@ -307,7 +315,6 @@ int main()
     odid_initUasData(&uasData);
     fill_example_data(&uasData);
 
-    device_descriptor = open_hci_device();
     hci_reset(device_descriptor);
     // Parar transmissao LE
     hci_le_set_advertising_disable(device_descriptor);
