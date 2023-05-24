@@ -139,7 +139,7 @@ class Advertisement(dbus.service.Object):
 class TestAdvertisement(Advertisement):
 
     def __init__(self, bus, index):
-        company_id =  0x0118
+        company_id =  0x0117
         type =       [0xBE, 0xAC]
         id1 =        [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
                       0x09, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16]
@@ -149,7 +149,7 @@ class TestAdvertisement(Advertisement):
         feature  =   [0x00]
         Advertisement.__init__(self, bus, index, 'peripheral')
         self.add_manufacturer_data(company_id, type + id1 + id2 + id3 + rssi_at_1m + feature)
-        self.add_local_name("Perseu matou medusa")
+        self.add_local_name("Aeronave teste 1")
 
 
 def register_ad_cb():
