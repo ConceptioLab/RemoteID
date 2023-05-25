@@ -1,0 +1,52 @@
+= GPSD area maintainers =
+:date: 13 January 2021
+:description: GPSD maintainers
+:docinfodir: www
+:keywords: GPSD, mainatiners
+:robots: index,follow
+:sectlinks:
+:toc: macro
+
+include::www/inc-menu.adoc[]
+
+This file points at responsible submaintainers for various portions
+of the GPSD code, packaging, and ports.
+
+== Modules and drivers ==
+
+Gary E. Miller <gem@rellim.com>::
+     Garmin driver, NTP interface code
+
+Reinhard Arlt <reinhard.arlt@t-online.de>::
+     NMEA 2000 support
+
+== Packaging ==
+
+Bernd Zeimetz <bernd@bzed.de>::
+     Debian
+
+Miroslav Lichvar <mlichvar@redhat.com>::
+     Red Hat
+
+Mike Frysinger <vapier@gentoo.org>::
+     Gentoo
+
+Greg Troxel <gdt@NetBSD.org>::
+     pkgsrc
+
+== Ports ==
+
+Samuel CUELLA <samuel.cuella@supinfo.com>::
+     Android
+
+Greg Troxel <gdt@NetBSD.org>::
+     NetBSD, Mac OS X
+
+Chris Kuethe <ckuethe@lapdance.mainframe.cx>::
+     OpenBSD
+
+Matt <ukyg9e5r6k7gubiekd6@yahoo.com>::
+     Cygwin (incomplete).  Eventually, mingw.
+
+// end
+

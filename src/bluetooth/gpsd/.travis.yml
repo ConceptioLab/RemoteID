@@ -1,0 +1,21 @@
+sudo: required
+language: generic
+
+## The used .ci-build/build.sh is maintained for the gitlab CI.
+## Please update the travis yaml file if necessary
+
+# Some versions of clang++ don't work with some C++ headers, due to an
+# issue with __float128.  Until this is reproducible in a more debuggable
+# context, we disable the C++ builds in the clang case.
+
+env:
+    - TRAVIS_DEBIAN_DISTRIBUTION=unstable TRAVIS_DEBIAN_BUILD_COMMAND="/bin/bash .ci-build/build.sh" TRAVIS_DEBIAN_BUILD_DEPENDENCIES="build-essential debhelper po-debconf python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoc libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev qtbase5-dev qt5-default lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd python-serial"
+    - TRAVIS_DEBIAN_DISTRIBUTION=unstable TRAVIS_DEBIAN_BUILD_COMMAND="/bin/bash .ci-build/build.sh" TRAVIS_DEBIAN_BUILD_DEPENDENCIES="build-essential debhelper po-debconf python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoc libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd python-serial"
+    - TRAVIS_DEBIAN_DISTRIBUTION=unstable TRAVIS_DEBIAN_BUILD_COMMAND="/bin/bash .ci-build/build.sh libgpsmm=no qt=no" TRAVIS_DEBIAN_BUILD_DEPENDENCIES="build-essential debhelper po-debconf python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoc libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd clang python-serial" TRAVIS_DEBIAN_BUILD_ENVIRONMENT="CC=clang CXX=clang++"
+    - TRAVIS_DEBIAN_DISTRIBUTION=stable TRAVIS_DEBIAN_BUILD_COMMAND="/bin/bash .ci-build/build.sh" TRAVIS_DEBIAN_BUILD_DEPENDENCIES="build-essential debhelper po-debconf python-all-dev python-all-dbg xsltproc docbook-xsl docbook-xml asciidoc libncurses-dev libusb-1.0-0-dev libdbus-1-dev libglib2.0-dev makedev libbluetooth-dev libqt4-dev lsb-release bc dpkg-dev scons chrpath dh-buildinfo pps-tools dh-systemd python-serial"
+
+services:
+  - docker
+
+script:
+  - wget -O- https://build-in-debian.bzed.at/script.sh | sh -

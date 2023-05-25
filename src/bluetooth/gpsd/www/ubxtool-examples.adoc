@@ -1,0 +1,1776 @@
+= ubxtool examples
+Gary E. Miller <gem@rellim.com>
+:Author: Gary E. Miller
+:Date: 18 June 2021
+:Description: U-blox GNSS receiver configuration examples
+:Email: <gem@rellim.com>
+:keywords: u-blox, examples, configuration, sudo
+:robots: index,follow
+:sectlinks:
+:toc: macro
+
+include::inc-menu.adoc[]
+
+WARNING: This document assumes you are using gpsd from git head, or
+version 3.22 or higher.  Using older gpsd versions will fail in strange
+ways.
+
+== Introduction
+
+The u-blox GNSS receivers have a huge number of configuration options.
+Most users will be perfectly happy running their receiver in its default
+configuration, but there are often times when users get the itch to
+change settings to see what happens.  Sometimes even for good reasons.
+
+IMPORTANT: Feel free to jump around this document to recipes that
+interest you, but be sure to first read all of, and comply with, the
+section on Initial Setup.
+
+Many of the recipes repeat text from other recipes so that recipes can
+stand alone.  Except all recipes require the Initial Setup section.
+
+== Initial Setup
+
+All the examples here assume that gpsd is running on the local host and
+that cgps is showing current and valid data from the receiver.
+
+If cgps is not showing any data, then do not bother to continue reading
+this document.
+
+You also need a copy of the "Interface Description" for your exact
+u-blox device.  The examples here will refer to a lot of messages and
+variables that are defined in that document.  Keep it open while reading
+this document and refer to it often.
+
+=== Sudo?  Sudon't!
+
+For some reason some users persist in using sudo with ubxtool.  This is
+wrong for many reasons:
+
+* ubxtool never needs root access, but will run fine as root.
+
+* sudo is *_not_* the same as running as root.  Using sudo with some of
+these examples *_will_* break them.
+
+* sudo is "Security Theater".  Having sudo enabled on a computer makes
+it demonstrably less secure.
+
+If you must be root, then become, and stay root.  Just sudon't.
+
+=== Protocol Version
+
+All the examples below require that you know the protocol version of
+your u-blox receiver.
+
+----
+$ ubxtool -p MON-VER
+----
+
+Buried in the data will be a data block that similar one of these
+examples.
+
+A u-blox 6, assume protocol version 12
+
+----
+UBX-MON-VER:
+  swVersion 6.02 (36023)
+  hwVersion 00040007
+----
+
+A u-blox 8, protocol version 15
+
+----
+UBX-MON-VER:
+  swVersion 2.01 (75331)
+  hwVersion 00080000
+  extension PROTVER 15.00
+  extension GPS;SBAS;GLO;BDS;QZSS
+----
+
+The shortcut to find the PROTVER for u-blox 8 and up:
+
+----
+$ ubxtool -p MON-VER | fgrep PROT
+extension PROTVER=18.00
+----
+
+The above shows the protocol version is 18.00.
+
+The ubxtool program needs to know the protocol version (PROTVER) of
+the connected receiver to send commands matched to your exact receiver's
+needs.  Use the "-P XX" option for this, where XX is your version.  This
+is easy to forget, and annoying to type repeatedly, so add it to your
+environment and ubxtool will use it.  For example if you have an early
+u-blox 8:
+
+----
+$ export UBXOPTS="-P 15"
+----
+
+You can use "-P 18 -v 2" if you have a newer u-blox 8, and for a little
+more verbosity.
+
+----
+$ export UBXOPTS="-P 18 -v 2"
+----
+
+
+=== Default Configuration
+
+A common problem when dealing with a u-blox GNSS receiver is left over
+configuration from earlier experiments.  The u-blox receivers are very
+picky about competing configuration options, and may fail to warn the
+unwary of conflicts.  Best to always revert to factory defaults before
+starting a new configuration.
+
+----
+$ ubxtool -p RESET
+----
+
+After a few seconds the receiver will only be sending NMEA, you will
+want to enable u-blox binary messages, and disable NMEA messages.  Best
+to do it in that order so the receiver does not go totally silent.  This
+is one place where the "-P", set in UBXOPTS, is critically important, to
+get the correct messages for your firmware.
+
+----
+$ ubxtool -e BINARY
+$ ubxtool -d NMEA
+----
+
+== ACK-ACK
+
+ACK-ACK is the sound of a cat coughing up a hairball.  Otherwise it is
+not of much use to us.  The u-blox documentation claims that every well
+formed CFG message sent to one of their GNSS receivers will receive a
+UBX-ACK-ACK or UBX-ACK-NAK in response.  That is not always true.  Valid
+messages may elicit no ACK-ACK or ACK-NAK.  Invalid ones may invoke an
+ACK-ACK, yet not be executed.  The only thing you can count on is that
+an ACK-NAK meant you sent something invalid.
+
+Always double check that any settings changed stuck.
+
+This text, and these examples, will ignore ACK-ACK responses.  If any
+cause an ACK-NAK for you then you either found a bug in this document, your
+receiver does not support the requested operation, or you mistyped
+something.
+
+== Enabling and Disabling Periodic Messages.
+
+Some individual messages, or sets of messages, can be enabled with the
+"-e ABLE". The same messages can be disabled with the "-d ABLE" option.
+The available options for ABLE will be see in the verbose help:
+
+----
+$ ubxtool --help -v 2 | less
+----
+
+If you wanted to enable the UBX-NAV-VELNED and UBX-NAV-RELPOSNED
+messages:
+
+----
+$ ubxtool --enable NED
+----
+
+When you realize that is not what you wanted, disable them:
+
+----
+$ ubxtool --disable NED
+----
+
+The advanced user will want to enable and disable messages that are not
+in the limited set of ABLE options.  You can use the preset command
+"-p CFG-MSG,class,ID[,rate]" to poll, or set, the message rate for any
+UBX message.
+
+To poll the rate at which UBX-NAV-SOL is sent from the receiver:
+
+----
+$ ubxtool -p CFG-MSG,1,6
+UBX-CFG-MSG:
+ Class x01 (NAV) ID x06 (SOL) Rates 0 0 0 0 0 0
+----
+
+UBX-NAV-SOL is Class 1, ID 6.  The above shows that UBX-NAV-SOL is not
+being output on any of the 6 ports.
+
+To send UBX-NAV-SOL, on the current port, on every second navigation
+solution, and verify the setting:
+
+----
+$ ubxtool -p CFG-MSG,1,6,2
+[...]
+# ubxtool -p CFG-MSG,1,6
+UBX-CFG-MSG:
+ Class x01 (NAV) ID x06 (SOL) Rates 0 0 0 2 0 0
+----
+
+That shows UBX-NAV-SOL is output every second navigation solution on
+port 3 (USB).
+
+Now we turn it back off, and verify.
+
+----
+$ ubxtool -p CFG-MSG,1,6,0
+[...]
+# ubxtool -p CFG-MSG,1,6
+UBX-CFG-MSG:
+ Class x01 (NAV) ID x06 (SOL) Rates 0 0 0 0 0 0
+----
+
+CFG-MSG is also used to set the rate on NMEA messages.  NMEA messages
+are all Class 0xf0.  Refer to the u-blox documentation for the ID's
+of specific NMEA messages.
+
+
+To enable $GNGNS once every nav solution:
+
+----
+$ ubxtool -p CFG-MSG,0xf0,0x0d,1 -v 2
+----
+
+Note the use of "-v 2", otherwise *ubxtool* does not show the NMEA messages
+in its output.
+
+We finish the example by turning $GNGNS back off:
+
+----
+$ ubxtool -p CFG-MSG,0xf0,0x0d,0
+----
+
+== Dynamic Platform Model
+
+The most common variable mis-configured in a u-blox receiver is the
+Dynamic Platform Model.  The receiver uses noisy measurements of
+satellite signals and attempts to interpret those as single PVT fix.
+By default the receiver assumes the receiver is "Portable" and not
+experiencing large accelerations.  Place that receiver in a car or
+airplane, and the smoothing will act perversely on the fix.  Take a
+moment now to read the section on Platform Settings in your u-blox
+documentation.  Different receivers support different models, so no
+generic recommendations are possible.
+
+Check your current Dynamic Platform Model:
+
+----
+$ ubxtool -p CFG-NAV5
+UBX-CFG-NAV5:
+ mask 0xffff dynModel 0 fixmode 3 fixedAlt 0 FixedAltVar 10000
+ minElev 5 drLimit 0 pDop 250 tDop 250 pAcc 100 tAcc 350
+ staticHoldThresh 0 dgpsTimeOut 60 cnoThreshNumSVs 0
+ cnoThresh 0 res 0 staticHoldMaxDist 0 utcStandard 0
+ reserved x0 0
+   dynModel (Portable) fixMode (Auto 2D/3D) utcStandard (Default)
+   mask (dyn minEl posFixMode drLim posMask timeMask staticHoldMask
+         dgpsMask cnoThreshold utc)
+----
+
+That shows the receiver is in the default Portable model.
+
+To change the active model to Automotive (4), and check it again,
+is simply:
+
+----
+$ ubxtool -p MODEL,4
+[...]
+$ ubxtool -p CFG-NAV5
+UBX-CFG-NAV5:
+ mask 0xffff dynModel 4 fixmode 3 fixedAlt 0 FixedAltVar 10000
+ minElev 5 drLimit 0 pDop 250 tDop 250 pAcc 100 tAcc 350
+ staticHoldThresh 0 dgpsTimeOut 60 cnoThreshNumSVs 0
+ cnoThresh 0 res 0 staticHoldMaxDist 0 utcStandard 0
+ reserved x0 0
+   dynModel (Automotive) fixMode (Auto 2D/3D) utcStandard (Default)
+   mask (dyn minEl posFixMode drLim posMask timeMask staticHoldMask
+         dgpsMask cnoThreshold utc)
+----
+
+
+=== With Configuration Items
+
+If the receiver is a 9-series, then you can change the model using
+Configuration Items.  These allow you to get, set and delete individual
+settings in the receiver. Before continuing this section, read the
+ubxtool man page on Configuration Items.
+
+The CFG-NAVSPG Configuration Item group includes the CFG-NAV5 items
+of interest here.  So take a look at them, in the ram layer:
+
+----
+# ubxtool -g CFG-NAVSPG,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-NAVSPG-18/0x10110012 val 0
+    item CFG-NAVSPG-INIFIX3D/0x10110013 val 0
+    item CFG-NAVSPG-20/0x10110014 val 1
+    item CFG-NAVSPG-21/0x10110015 val 1
+    item CFG-NAVSPG-22/0x10110016 val 1
+    item CFG-NAVSPG-24/0x10110018 val 1
+    item CFG-NAVSPG-USE_PPP/0x10110019 val 0
+    item CFG-NAVSPG-27/0x1011001b val 0
+    item CFG-NAVSPG-ACKAIDING/0x10110025 val 0
+    item CFG-NAVSPG-70/0x10110046 val 1
+    item CFG-NAVSPG-82/0x10110052 val 0
+    item CFG-NAVSPG-83/0x10110053 val 0
+    item CFG-NAVSPG-USE_USRDAT/0x10110061 val 0
+    item CFG-NAVSPG-129/0x10110081 val 0
+    item CFG-NAVSPG-130/0x10110082 val 0
+    item CFG-NAVSPG-131/0x10110083 val 0
+    item CFG-NAVSPG-FIXMODE/0x20110011 val 3
+    item CFG-NAVSPG-26/0x2011001a val 18
+    item CFG-NAVSPG-UTCSTANDARD/0x2011001c val 0
+    item CFG-NAVSPG-32/0x20110020 val 100
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 1
+    item CFG-NAVSPG-34/0x20110022 val 0
+    item CFG-NAVSPG-35/0x20110023 val 0
+    item CFG-NAVSPG-36/0x20110024 val 1
+    item CFG-NAVSPG-38/0x20110026 val 0
+    item CFG-NAVSPG-66/0x20110042 val 2
+    item CFG-NAVSPG-67/0x20110043 val 3
+    item CFG-NAVSPG-68/0x20110044 val 1
+    item CFG-NAVSPG-69/0x20110045 val 1
+    item CFG-NAVSPG-81/0x20110051 val 0
+    item CFG-NAVSPG-INFIL_MINSVS/0x201100a1 val 3
+    item CFG-NAVSPG-INFIL_MAXSVS/0x201100a2 val 32
+    item CFG-NAVSPG-INFIL_MINCNO/0x201100a3 val 6
+    item CFG-NAVSPG-INFIL_MINELEV/0x201100a4 val 5
+    item CFG-NAVSPG-INFIL_NCNOTHRS/0x201100aa val 0
+    item CFG-NAVSPG-INFIL_CNOTHRS/0x201100ab val 0
+    item CFG-NAVSPG-CONSTR_DGNSSTO/0x201100c4 val 60
+    item CFG-NAVSPG-213/0x201100d5 val 0
+    item CFG-NAVSPG-SIGATTCOMP/0x201100d6 val 0
+    item CFG-NAVSPG-WKNROLLOVER/0x30110017 val 2029
+    item CFG-NAVSPG-OUTFIL_PDOP/0x301100b1 val 250
+    item CFG-NAVSPG-OUTFIL_TDOP/0x301100b2 val 250
+    item CFG-NAVSPG-OUTFIL_PACC/0x301100b3 val 100
+    item CFG-NAVSPG-OUTFIL_TACC/0x301100b4 val 350
+    item CFG-NAVSPG-OUTFIL_FACC/0x301100b5 val 150
+    item CFG-NAVSPG-USRDAT_DX/0x40110064 val 0.0
+    item CFG-NAVSPG-USRDAT_DY/0x40110065 val 0.0
+    item CFG-NAVSPG-USRDAT_DZ/0x40110066 val 0.0
+    item CFG-NAVSPG-USRDAT_ROTX/0x40110067 val 0.0
+    item CFG-NAVSPG-USRDAT_ROTY/0x40110068 val 0.0
+    item CFG-NAVSPG-USRDAT_ROTZ/0x40110069 val 0.0
+    item CFG-NAVSPG-USRDAT_SCALE/0x4011006a val 0.0
+    item CFG-NAVSPG-CONSTR_ALT/0x401100c1 val 0
+    item CFG-NAVSPG-CONSTR_ALTVAR/0x401100c2 val 10000
+    item CFG-NAVSPG-209/0x401100d1 val 0
+    item CFG-NAVSPG-210/0x401100d2 val 0
+    item CFG-NAVSPG-211/0x401100d3 val 0
+    item CFG-NAVSPG-USRDAT_MAJA/0x50110062 val 6378137.0
+    item CFG-NAVSPG-USRDAT_FLAT/0x50110063 val 298.257223563
+----
+
+We can now use CFG-NAVSPG-DYNMODEL to change the model back to
+Pedestrian, and then confirm the setting:
+
+----
+$ ubxtool -z CFG-NAVSPG-DYNMODEL,0
+[...]
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 0
+----
+
+== Rate Settings
+
+There can be a good need to change the rate at which your receiver takes
+measurements, or how many measurements it uses to compute its navigation
+solution (fix).  Slow down the measurement rate to save power.  Or speed
+it up in fast moving dynamic environments.  Using several measurements
+sets for each fix computation may remove some noise.  No one size
+fits all.
+
+NOTE: Not all u-blox can take measurements faster than 1 Hz.
+
+The current configuration can be seen this way:
+
+----
+$ ubxtool -p CFG-RATE
+[...]
+UBX-CFG-RATE:
+ measRate 1000 navRate 1 timeRef 1 (GPS)
+----
+
+To change to a 10 Hz measurement and fix rate, then check your work:
+
+----
+$ ubxtool -p CFG-RATE,100
+[...]
+$ ubxtool -p CFG-RATE
+[...]
+UBX-CFG-RATE:
+ measRate 000 navRate 1 timeRef 1 (GPS)
+----
+
+The parameter to the RATE command is the number of milliseconds.
+
+=== Rate Settings with Configuration Items
+
+If the receiver is a 9-series, then you can change the rate at which
+the receiver takes measurements and/or computes the navigation solution
+(fix) using Configuration Items.  These allow you to get, set and delete
+individual settings in the receiver. Before continuing this section,
+read the ubxtool man page on Configuration Items.
+
+The CFG-NAVSPG Configuration Item group includes the CFG-NAV5 items
+of interest here.  So take a look at them, in the ram layer:
+
+----
+# ubxtool -g CFG-RATE,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-RATE-TIMEREF/0x20210003 val 1
+    item CFG-RATE-MEAS/0x30210001 val 1000
+    item CFG-RATE-NAV/0x30210002 val 1
+----
+
+You can change the measurement rate to 0.1 Hz, and check it, this way:
+
+----
+$ ubxtool -z CFG-RATE-MEAS,10000,1
+sent:
+UBX-CFG-VALSET:
+ version 0 layer 0x1 transaction 0x0 reserved 0
+  layers (ram) transaction (Transactionless)
+    item CFG-RATE-MEAS/0x30210001 val 10000
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x8a (VALSET)
+[...]
+$ ubxtool -g CFG-RATE-MEAS,1
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-RATE-MEAS/0x30210001 val 10000
+----
+
+== Logging
+
+Sometimes you want your GNSS receiver to be able to log PVT fixes for
+later retrieval.  This allows the host to go into sleep mode to save
+power.  Logs are stored in external flash memory.  Some GNSS receivers,
+like the NEO-M8B, allow the receiver to go into sleep mode between fixes
+to save even more power.
+
+Be sure you have performed all the steps in Initial Setup before
+proceeding to the following logging specific steps.
+
+=== Logging Prerequisites
+
+For logging, you need:
+
+1. u-blox 7, 8 or 9 GNSS receiver (protocol version greater than, or equal to, 15)
+
+2. External SQI flash memory with a valid Flash Information Structure (FIS).
+
+By default EVK boards and other commercial products with flash will
+already have a valid FIS.  Added or replaced flash will need to have
+an FIS created.  If your receiver has flash, but no valid FIS, you can
+create a new FIS with u-center.
+
+If you do not meet the above prerequisites, then you can stop reading
+this section now.
+
+The easy way to see if your firmware supports logging is to ask it:
+
+----
+$ ubxtool -p LOG-INFO
+----
+
+There are three possible results.
+
+One, the receiver does not return ACK-ACK, ACK-NAK, or any UBX-LOG-INFO
+message.  That means your receiver does not support logging.  Game over,
+your receiver does not support logging.
+
+Two, the receiver returns something similar to this:
+
+----
+    UBX-LOG-INFO:
+      version 1 reserved1 x0 x0 filestoreCapacity 0 reserved2 x0 x0
+      currentMaxLogSize 0 currentLogSize 0 entryCount 0
+      oldestYear 0 oldestMonth 0 oldestDay 0
+      oldestHour 0 oldestMin 0 oldestSec 0 reserved3 x0
+      newestYear 0 newestMonth 0 newestDay 0
+      newestHour 0 newestMin 0 newestSec 0 reserved4 x0
+      status x10 reserved5 x0 x0
+----
+
+The filestoreCapacity of zero means you have no flash for logging to
+use.  Game over, your receiver does not support logging.
+
+Three, the receiver returns something similar to this:
+
+----
+    UBX-LOG-INFO:
+      version 1 reserved1 x0 x0 filestoreCapacity 487680 reserved2 x9600 x24900
+      currentMaxLogSize 134400 currentLogSize 61 entryCount 0
+      oldestYear 0 oldestMonth 0 oldestDay 0
+      oldestHour 0 oldestMin 0 oldestSec 0 reserved3 x0
+      newestYear 0 newestMonth 0 newestDay 0
+      newestHour 0 newestMin 0 newestSec 0 reserved4 x0
+      status x20 reserved5 x0 x0
+----
+
+That means your receiver has almost 500 kB of flash, and about 134 kB is
+available for logging.  Congratulations, your receiver supports logging.
+Proceed to the next section on configuration.
+
+=== Logging Configuration
+
+Be sure you have completed the instructions in the section
+Initial Setup before continuing here.
+
+Erase any exiting log:
+
+----
+$ ubxtool -p LOG-ERASE
+[...]
+sent:
+UBX-LOG-ERASE:
+  Erase Logged Data
+UBX-ACK-ACK:
+  ACK to Class x21 (LOG) ID x03 (ERASE)
+----
+
+Create new log:
+
+----
+$ ubxtool -p LOG-CREATE
+[...]
+sent:
+UBX-LOG-CREATE:
+  version 0 logCfg x1 reserved1 x0 logSize 0
+  userDefinedSize 0
+
+UBX-ACK-ACK:
+  ACK to Class x21 (LOG) ID x07 (CREATE)
+----
+
+Start logging:
+
+----
+$ ubxtool -e LOG
+[...]
+sent:
+UBX-CFG-LOGFILTER:
+ version 1 flags x5 minInterval 0 timeThreshold 0
+ speedThreshold 0 positionThreshold 0
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x47 (LOGFILTER)
+----
+
+Wait, then verify that the receiver is logging data:
+
+----
+$ ubxtool -p LOG-INFO -v 2
+UBX-LOG-INFO:
+  version 1 reserved1 x0 x0 filestoreCapacity 487680 reserved2 x9600 x24900
+  currentMaxLogSize 134400 currentLogSize 88 entryCount 8
+  oldestYear 2020 oldestMonth 5 oldestDay 22
+  oldestHour 22 oldestMin 33 oldestSec 56 reserved3 x0
+  newestYear 2020 newestMonth 5 newestDay 22
+  newestHour 22 newestMin 26 newestSec 41 reserved4 x0
+  status x28 reserved5 x0 x0
+      status (recording circular)
+----
+
+Add a string:
+
+----
+$ ubxtool -p LOG-STRING -v 2
+[...]
+UBX-ACK-ACK:
+  ACK to Class x21 (LOG) ID x04 (STRING)
+----
+
+Wait for a few more fixes to be logged, then turn off logging.
+
+----
+$ ubxtool -d LOG -v 2
+[...]
+sent:
+UBX-CFG-LOGFILTER:
+ version 1 flags x0 minInterval 0 timeThreshold 0
+ speedThreshold 0 positionThreshold 0
+   flags ()
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x47 (LOGFILTER)
+----
+
+Verify that logging is indeed off:
+
+----
+$ ubxtool -p LOG-INFO -v 2
+[...]
+UBX-LOG-INFO:
+  version 1 reserved1 x0 x0 filestoreCapacity 487680 reserved2 x9600 x24900
+  currentMaxLogSize 134400 currentLogSize 288 entryCount 33
+  oldestYear 2020 oldestMonth 5 oldestDay 22
+  oldestHour 22 oldestMin 33 oldestSec 56 reserved3 x0
+  newestYear 2020 newestMonth 5 newestDay 22
+  newestHour 22 newestMin 34 newestSec 11 reserved4 x0
+  status x20 reserved5 x0 x0
+      status (circular)
+----
+
+Retrieve log data:
+
+----
+$ ubxtool -p LOG-RETRIEVE -v 2
+[...]
+UBX-LOG-RETRIEVEPOS:
+  entryIndex 12 lon -1213142510 lat 440688770 hMSL 1128900 hAcc 7000
+  gSpeed 90 heading 28500000 version 0 fixType 3
+  year 2020 month 5 day 22 hour 22 min 34 sec 2
+  reserved1 x0 numSV 7 reserved2 x0
+      fixType (3D Fix)
+
+UBX-LOG-RETRIEVEPOSEXTRA:
+  entryIndex 13 version 0 reserved1 x0
+  year 2020 month 5 day 22 hour 22 minute 34 seconds 2
+  reserved2 x0 0 distance 1252489 reserved3 x0 0 0
+
+UBX-LOG-RETRIEVESTRING:
+  entryIndex 14 version 0 reserved2 x0
+  year 2020 month 5 day 22 hour 22 min 34 sec 2
+  reserved2 x0 byteCount 2
+  bytes "Hi"
+
+UBX-LOG-RETRIEVEPOS:
+  entryIndex 15 lon -1213142470 lat 440688690 hMSL 1128600 hAcc 7000
+  gSpeed 240 heading 26300000 version 0 fixType 3
+  year 2020 month 5 day 22 hour 22 min 34 sec 3
+  reserved1 x0 numSV 8 reserved2 x0
+      fixType (3D Fix)
+[...]
+----
+
+Erase and clear existing log, before you can enable log again:
+
+----
+$ ubxtool -p LOG-ERASE
+$ ubxtool -p LOG-CREATE
+----
+
+== Batching
+
+U-blox batching is like logging, but logging is saved in flash memory,
+and batching is saved in RAM memory.  Not all u-blox receivers have RAM
+available for batching.
+
+Be sure you have performed all the steps in Initial Setup before
+proceeding to these batching specific steps.
+
+=== Batching Prerequisites
+
+For batching, you need:
+
+1. u-blox 8 or 9 GNSS receiver (protocol version 23.01 or greater)
+
+2. RAM memory
+
+If you do not meet the above prerequisites, then you can stop reading
+now.
+
+The easy way to see if your firmware supports batching is to ask it:
+
+----
+$ ubxtool -p MON-BATCH
+----
+
+If the receiver does not ACK, or NAK, that request, then it does not
+support batching.  Game over, do not bother to continue with this
+example.
+
+If your receiver does support batching, you will see something
+similar to this:
+
+----
+$ ubxtool -p MON-BATCH
+ubxtool: poll MON-BATCH
+
+sent:
+UBX-MON-BATCH:
+  Poll request
+
+UBX-MON-BATCH:
+   version 0 reserved1 0 0 0 fillLevel 128
+   dropsAll 65535 dropsSinceMon 4 nextMsgCnt 166
+----
+
+Check your u-blox documentation for what UBX-MON-BATCH just told you.
+
+=== Batching Configuration
+
+Be sure you have completed the instructions in the section
+Initial Setup before continuing here.
+
+Enable batching:
+
+----
+$ ubxtool -e BATCH
+----
+
+Wait, then verify:
+
+----
+$ ubxtool -p CFG-BATCH -p MON-BATCH -v 2
+[...]
+UBX-CFG-BATCH:
+  version 0 flags xd bufsize 128 notifThrs 0
+  pioId 0 reserved1 0
+      flags (enable extraPvt extraOdo)
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x93 (BATCH)
+
+UBX-MON-BATCH:
+   version 0 reserved1 0 0 0 fillLevel 128
+   dropsAll 321 dropsSinceMon 15 nextMsgCnt 38
+[...]
+----
+
+Wait a while, for some fixes to be saved in the BATCH.  Then check
+UBX-MON-BATCH and get all the batch entries:
+
+----
+$ ubxtool -p LOG-RETRIEVEBATCH -v 2
+[...]
+UBX-MON-BATCH:
+   version 0 reserved1 0 0 0 fillLevel 128
+   dropsAll 65535 dropsSinceMon 1310 nextMsgCnt 166
+
+UBX-LOG-BATCH:
+  version 0 contentValid x3 msgCnt 166 iTow 510334000
+  year 2020 month 5 day 22 hour 21 min 45 sec 16 valid x37
+  tAcc 30 fracSec 104291 fixType 3 flags x11 flags2 xa numSV 5
+  lon -1213142428 lat 440690573 height 1130139 hMSL 1151489
+  hAcc 9541 vAcc 11092
+  vel N 288 E 111 D -29 gSpeed 274 headMot 2104222 sAcc 786 headAcc 4232547
+  pdep 432 reserved1 x0 distance 1249842 totalDistance 1249842
+  distanceStd 4880 reserved2 x0
+      contentValid (extraPvt extraOdo) valid (validDate validTime)
+      fixType (3D Fix)
+      flags (gnssFixOK) psmState (Power Optimized Tracking)
+----
+
+There will be a number of UBX-LOG-BATCH with each of the individual
+batches fixes.
+
+End batching:
+
+----
+$ ubxtool -d BATCH
+----
+
+== Survey-In and RTCM
+
+Sometimes your GNSS antenna is fixed and instead of having your receiver
+compute its position, you want it to use the known position to provide a
+more accurate PPS, or to compute the errors it sees in the signals it
+measures.  Corrections can then be transmitted to a nearby receiver.
+
+The receiver with the fixed antenna is called the base, and the nearby
+receiver is a rover.  The corrections are usually in one of the many
+RTCM2 or RTCM3 variants.
+
+Some u-blox receivers with protocol versions of 20 or greater output
+RTCM3 corrections.  None output RTCM2 corrections.
+
+Be sure you have completed the instructions in the section Initial Setup
+before continuing here.  To understand the following example you should
+have read the Survey-in section from the u-blox documentation for your
+receiver.
+
+=== Survey-In and RTCM Prerequisites
+
+For base mode, you need a u-blox receiver that supports UBX-CFG-TMODE2
+or UBX-CFG-TMODE3. This is usually limited to Time & Frequency Sync, Time
+Sync, or High Precision products.
+
+Your receiver supports the High Precision messages if it answers the
+UBX-NAV-SVIN message:
+
+----
+$ ubxtool -p NAV-SVIN -P 27.11
+ubxtool: poll NAV-SVIN
+
+sent:
+UBX-NAV-SVIN:
+  Poll request
+
+[...]
+UBX-NAV-SVIN:
+  version 0 reserved1[0 0 0] iTOW 256297000 dur 100
+  meanX -238605675 meanY -392219737 meanZ 441436428
+  meanXHP -30 meanYHP 9 meanZHP -14 reserved2 0 meanAcc 199922
+  obs 101 valid 1 active 0
+----
+
+Your receiver supports the Timing messages if it answers the
+UBX-TIM-SVIN message:
+
+----
+# ubxtool -p TIM-SVIN -P 22
+ubxtool: poll TIM-SVIN
+
+sent:
+UBX-TIM-SVIN:
+  Poll request
+[...]
+UBX-TIM-SVIN:
+  dur 30 meanX -238607642 meanY -392219170 meanZ 441436506 meanV 163464256
+  obs 31 valid 0 active 0
+----
+
+If your receiver responds to neither request, then you can use Survey-in.
+
+=== Survey-In Configuration
+
+If your receiver responded to UBX-NAV-SVIN, then you start the default
+survey this way:
+
+----
+# ubxtool -e SURVEYIN3 -P 27
+ubxtool: enable SURVEYIN3
+
+sent:
+UBX-CFG-TMODE3:
+  version 0 reserved1 0 flags x1
+  ecefXOrLat 0 ecefYOrLon 0 ecefZOrAlt 0
+  ecefXOrLatHP 0 ecefYOrLonHP 0 ecefZOrAltHP 0
+  reserved2 0 fixedPosAcc 0 svinMinDur 300 svinAccLimit 500000
+  reserved3 0 0
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x71 (TMODE3)
+----
+
+For receivers that responded to UBX-TIM-SVIN, simply change SURVEYIN3 to
+SURVEYIN.  You can optionally provide the svinMinDur and svinAccLimit
+variables on the command line.  For example, to survey-in for 60 seconds
+and 20 meters accuracy:
+
+----
+$ ubxtool -e SURVEYIN3,60,200000  -v 2 -P 27
+ubxtool: enable SURVEYIN3,60,200000
+[...]
+----
+
+To check the progress of your survey:
+
+----
+$ ubxtool -p NAV-SVIN -P 27
+ubxtool: poll NAV-SVIN
+
+sent:
+UBX-NAV-SVIN:
+  Poll request
+[...]
+UBX-NAV-SVIN:
+  version 0 reserved1[0 0 0] iTOW 257578000 dur 23
+  meanX -238605582 meanY -392219750 meanZ 441436474
+  meanXHP -46 meanYHP -48 meanZHP -50 reserved2 0 meanAcc 392629
+  obs 23 valid 0 active 1
+----
+
+Replace NAV-SVIN with TIM-SVIN above for Timing products. "active 1"
+tells you a survey-in is in progress, but "valid 0" tells you it is
+not complete.  It may never complete if it cannot reach the position
+accuracy requested.
+
+Your survey is complete when valid is 1.  At that point NAV-PVT will
+show a fixType of 5 to show you it has entered fixed base mode.
+
+----
+$ ubxtool -p NAV-SVIN -P 27
+[...]
+UBX-NAV-SVIN:
+  version 0 reserved1[0 0 0] iTOW 260515000 dur 300
+  meanX -238605429 meanY -392219715 meanZ 441436264
+  meanXHP -39 meanYHP 17 meanZHP -14 reserved2 0 meanAcc 328065
+  obs 301 valid 1 active 0
+
+UBX-NAV-PVT:
+  iTOW 260516000 time 2020/6/3  0:21:38 valid x37
+  tAcc 26 nano -29221 fixType 5 flags x1 flags2 xea
+  numSV 19 lon -1213140873 lat 440688410 height 1109817
+  hMSL 1131166 hAcc 26786 vAcc 18941
+  velN 0 velE 0 velD 0 gSpeed 0 headMot 33945561
+  sAcc 10 headAcc 16986464 pDOP 9999 reserved1 0 26042 11331
+  headVeh 2900837 magDec 0 magAcc 0
+    valid (validDate ValidTime fullyResolved) fixType (Surveyed)
+    flags (gnssFixOK)
+    flags2 (confirmedAvai confirmedDate confirmedTime)
+    psmState (Not Active)
+    carrSoln (None)
+----
+
+=== RTCM3 Configuration
+
+This RTCM3 example currently only works on the USB port of a 9-series
+Time, Frequency and Time, or High Precision device.  It generates a
+LOT of data.
+
+To enable the RTCM 3 output on the USB port:
+
+----
+$ ubxtool -e RTCM3 -P 27 -v 2
+ubxtool: enable RTCM3
+
+sent:
+UBX-CFG-PRT:
+ PortID 3 (USB) reserved1 0 txReady 0x0
+  reserved2 [0 0]
+  inProtoMask 0x23 outProtoMask 0x23
+  reserved3 0 reserved4 0
+    inProtoMask (UBX NMEA RTCM3)
+    outProtoMask (UBX NMEA RTCM3)
+
+sent:
+UBX-CFG-MSG:
+  Rate set Class xf5 (RTCM) ID x05 (1005) Rate 1
+[A lot of RTCM3 messages are enabled ...]
+RTCM3 packet: type 1077
+[A ton of RTCM3 messages are output ...]
+----
+
+To be able to do anything else, you must disable the RTCM3:
+
+----
+$ ubxtool -d RTCM3 -P 27 -v 2
+ubxtool: disable RTCM3
+[...]
+----
+
+=== Exiting Survey-in
+
+To restore your receiver to normal mode:
+
+----
+$ ubxtool -d SURVEYIN3
+ubxtool: disable SURVEYIN3
+
+sent:
+UBX-CFG-TMODE3:
+  version 0 reserved1 0 flags x0
+  ecefXOrLat 0 ecefYOrLon 0 ecefZOrAlt 0
+  ecefXOrLatHP 0 ecefYOrLonHP 0 ecefZOrAltHP 0
+  reserved2 0 fixedPosAcc 0 svinMinDur 300 svinAccLimit 50000
+  reserved3 0 0
+
+UBX-ACK-ACK:
+  ACK to Class x06 (CFG) ID x71 (TMODE3)
+----
+
+Or for a Timing product:
+
+----
+$ ubxtool -d SURVEYIN2
+ubxtool: disable SURVEYIN2
+[...]
+----
+
+== Constellations
+
+For unknown reasons, one of the first things new users want to play with
+is the constellation settings.  If you are headed to the polar region,
+into space, or to Asia, then these settings will be of interest to
+you.  GLONASS works better at high latitudes than GPS.  QZSS and NaVIC
+are useful in Asia.  Otherwise, unless you have a Rubidium atomic clock
+handy, or run 12-hour experiments with *gpsprof*, it will be hard for you
+to improve on the defaults.  If you still must fiddle, then read on,
+after completing the above section on Initial Setup.
+
+=== Checking Constellations
+
+First you must understand what your GNSS receiver is capable of.  Find
+this out with the UBX-MON-GNSS message.
+
+----
+$ ubxtool -p MON-GNSS
+----
+
+If your receiver does not return an ACK-ACK message, then it is 7-series
+or earlier, and only receives from GPS satellites.  Owners of 7-series,
+or older receivers can stop reading this section now.
+
+A u-blox 8 may return something like this:
+
+----
+UBX-MON-GNSS:
+   version 0 supported 0x7 defaultGnss 0x3 enabled 0x3
+   simultaneous 2 reserved1 0 0 0
+     supported (GPS Glonass Beidou)
+     defaultGnss (GPS Glonass)
+     enabled (GPS Glonass)
+----
+
+That 8 can support GPS, GLONASS, and BeiDou, but only two at a time.
+
+A u-blox 9 might return something like this:
+
+----
+UBX-MON-GNSS:
+   version 0 supported 0xf defaultGnss 0xf enabled 0xd
+   simultaneous 4 reserved1 0 0 0
+     supported (GPS Glonass Beidou Galileo)
+     defaultGnss (GPS Glonass Beidou Galileo)
+     enabled (GPS Beidou Galileo)
+----
+
+That 9 can support GPS, GLONASS, BeiDou, and Galileo, and all at the same
+time.  But in that case, GLONASS is turned off.
+
+There are more details to see with UBX-CFG-GNSS.  A u-blox 8 might
+show:
+
+----
+$ ubxtool -p CFG-GNSS -v 2
+[...]
+UBX-CFG-GNSS:
+ msgVer 0  numTrkChHw 32 numTrkChUse 32 numConfigBlocks 5
+  gnssId 0 TrkCh  8 maxTrCh 16 reserved 0 Flags x01010001
+   GPS L1C/A enabled
+  gnssId 1 TrkCh  1 maxTrCh  3 reserved 0 Flags x01010001
+   SBAS L1C/A enabled
+  gnssId 3 TrkCh  8 maxTrCh 16 reserved 0 Flags x01010000
+   BeiDou B1I
+  gnssId 5 TrkCh  0 maxTrCh  3 reserved 0 Flags x01010001
+   QZSS L1C/A enabled
+  gnssId 6 TrkCh  8 maxTrCh 14 reserved 0 Flags x01010001
+   GLONASS L1 enabled
+----
+
+That shows 5 constellations, not 2.  Since GPS, SBAS and QZSS all use
+the same frequency and modulation, they were lumped together by MON-GNSS
+as simply GPS.
+
+An L2 capable 9-series may look like this:
+
+----
+UBX-CFG-GNSS:
+ msgVer 0  numTrkChHw 60 numTrkChUse 60 numConfigBlocks 5
+  gnssId 0 TrkCh  8 maxTrCh 16 reserved 0 Flags x11110001
+   GPS L1C/A L2C enabled
+  gnssId 2 TrkCh 10 maxTrCh 18 reserved 0 Flags x21210001
+   Galileo E1 E5b enabled
+  gnssId 3 TrkCh  4 maxTrCh  5 reserved 0 Flags x11010001
+   BeiDou B1I enabled
+  gnssId 5 TrkCh  0 maxTrCh  3 reserved 0 Flags x11110001
+   QZSS L1C/A L2C enabled
+  gnssId 6 TrkCh  8 maxTrCh 12 reserved 0 Flags x11110001
+   GLONASS L1 L2 enabled
+----
+
+There are several things to note.  SBAS is not shown.  Outside of FAA
+requirements, SBAS no longer has any value to the user, and is simply
+not supported.  Multiple signals per constellation are shown, and can be
+individually enabled.
+
+=== Changing Constellations
+
+The 9-series receives a large number of signals in parallel, so other than
+for testing, there is no need to change the defaults that listen to
+everything.
+
+Stepping back a bit, the 8-series is more problematic.  Many of them
+can only listen to two out of the three possible frequency bands:  GPS,
+GLONASS and BeiDou.  Most default to GPS and GLONASS, but GPS and Beidou
+may work better.  This is partly because most GPS-only antennas can
+receive BeiDou, but fail to receive GLONASS.  Partly because BeiDou and
+GLONASS sats cover different regions of the earth.
+
+If we first try to enable BeiDou, that will fail, as that would enable
+3 constellations when only 2 are supported.  So disable GLONASS, then
+enable BeiDou, then check.  Always check as u-blox does not reliably report
+errors.
+
+----
+$ ubxtool -d GLONASS
+[...]
+$ ubxtool -e BEIDOU
+[...]
+$ ubxtool -p CFG-GNSS
+[...]
+UBX-CFG-GNSS:
+ msgVer 0  numTrkChHw 32 numTrkChUse 32 numConfigBlocks 5
+  gnssId 0 TrkCh  8 maxTrCh 16 reserved 0 Flags x01010001
+   GPS L1C/A enabled
+  gnssId 1 TrkCh  1 maxTrCh  3 reserved 0 Flags x01010001
+   SBAS L1C/A enabled
+  gnssId 3 TrkCh  2 maxTrCh 16 reserved 0 Flags x01010001
+   BeiDou B1I enabled
+  gnssId 5 TrkCh  0 maxTrCh  3 reserved 0 Flags x01010001
+   QZSS L1C/A enabled
+  gnssId 6 TrkCh  8 maxTrCh 14 reserved 0 Flags x01010000
+   GLONASS L1
+----
+
+After a few minutes, if you are in a location which BeiDou covers, then
+you should start to see BeiDou sats in the cgps sat list.  The 8-series
+has many other constraints on setting CFG-GNSS, the masochistic will
+need to spend a lot of quality time with the u-blox documentation to
+lean the many ways to shoot themselves in the foot.
+
+While the need for changing what the 9-series listens for is less, the
+complexity of doing so is increased.  Not only must the constellation
+be selected, but also the signals within the constellation.
+
+Let us disable GLONASS on a ZED-F9P, then enable it, and check the
+results:
+
+----
+$ ubxtool -d GLONASS
+[...]
+$ ubxtool -e GLONASS
+[...]
+$ ubxtool -p CFG-GNSS
+[...]
+UBX-CFG-GNSS:
+ msgVer 0  numTrkChHw 60 numTrkChUse 60 numConfigBlocks 5
+  gnssId 0 TrkCh  8 maxTrCh 16 reserved 0 Flags x11110001
+   GPS L1C/A L2C enabled
+  gnssId 2 TrkCh 10 maxTrCh 18 reserved 0 Flags x21210001
+   Galileo E1 E5b enabled
+  gnssId 3 TrkCh  4 maxTrCh  5 reserved 0 Flags x11010001
+   BeiDou B1I enabled
+  gnssId 5 TrkCh  0 maxTrCh  3 reserved 0 Flags x11110001
+   QZSS L1C/A L2C enabled
+  gnssId 6 TrkCh  8 maxTrCh 12 reserved 0 Flags x11110000
+   GLONASS L1 L2
+----
+
+Note that GLONASS is still disabled.  Determining why is left as an
+exercise to the reader.  The receiver must be told to enable both
+frequencies before it complies:
+
+----
+$ ubxtool -e GLONASS,2
+[...]
+$ ubxtool -p CFG-GNSS
+[...]
+UBX-CFG-GNSS:
+ msgVer 0  numTrkChHw 60 numTrkChUse 60 numConfigBlocks 5
+  gnssId 0 TrkCh  8 maxTrCh 16 reserved 0 Flags x11110001
+   GPS L1C/A L2C enabled
+  gnssId 2 TrkCh 10 maxTrCh 18 reserved 0 Flags x21210001
+   Galileo E1 E5b enabled
+  gnssId 3 TrkCh  4 maxTrCh  5 reserved 0 Flags x11010001
+   BeiDou B1I enabled
+  gnssId 5 TrkCh  0 maxTrCh  3 reserved 0 Flags x11110001
+   QZSS L1C/A L2C enabled
+  gnssId 6 TrkCh  8 maxTrCh 12 reserved 0 Flags x11110001
+   GLONASS L1 L2 enabled
+----
+
+Another reason to always check your work hen using ubxtool.
+
+u-blox recently recommended to a cold boot after changing
+to some configurations of constellations:
+
+----
+$ unxtool -p COLDBOOT
+----
+
+=== Changing Constellations with Configuration Items
+
+The astute will have noticed that the canned ubxtool commands, like
+"-e GLONASS", send one or binary messages that may change a handful
+or variables at once.  The 9-series avoids this mess with Configuration
+Items.  These allow you to get, set and delete individual settings in
+the receiver.  before continuing this section, read the ubxtool
+man page on Configuration Items.
+
+The CFG-SIGNAL Configuration Item group includes the CFG-GNSS items
+of interest here.  So take a look at them, in the ram layer:
+
+----
+$ ubxtool -g CFG-SIGNAL,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-SIGNAL-GPS_L1CA_ENA/0x10310001 val 1
+    item CFG-SIGNAL-GPS_L2C_ENA/0x10310003 val 1
+    item CFG-SIGNAL-GAL_E1_ENA/0x10310007 val 1
+    item CFG-SIGNAL-GAL_E5B_ENA/0x1031000a val 1
+    item CFG-SIGNAL-BDS_B1_ENA/0x1031000d val 1
+    item CFG-SIGNAL-BDS_B2_ENA/0x1031000e val 0
+    item CFG-SIGNAL-QZSS_L1CA_ENA/0x10310012 val 1
+    item CFG-SIGNAL-QZSS_L2C_ENA/0x10310015 val 1
+    item CFG-SIGNAL-GLO_L1_ENA/0x10310018 val 1
+    item CFG-SIGNAL-GLO_L2_ENA/0x1031001a val 1
+    item CFG-SIGNAL-GPS_ENA/0x1031001f val 1
+    item CFG-SIGNAL-GAL_ENA/0x10310021 val 1
+    item CFG-SIGNAL-BDS_ENA/0x10310022 val 1
+    item CFG-SIGNAL-QZSS_ENA/0x10310024 val 1
+    item CFG-SIGNAL-GLO_ENA/0x10310025 val 1
+    item CFG-SIGNAL-39/0x10310027 val 1
+[...]
+----
+
+Notice that the BeiDou B2 signal is not enabled.  That might be because
+when the firmware was written there were not B2 signals from space to
+test.  Or maybe not, who knows, but we want to enable it to see if
+anything changes.  So we will use the "-z" command to enable it, and
+the "-g" command to check it in layer 0.
+
+----
+$ ubxtool -z CFG-SIGNAL-BDS_B2_ENA,1
+[...]
+$ ubxtool -g CFG-SIGNAL-BDS_B2_ENA,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-SIGNAL-BDS_B2_ENA/0x1031000e val 1
+----
+
+== ADR and UDR
+
+Some u-blox products have integrated 6-axis Inertial Measurement Units
+(IMU). The receivers need firmware extensions, that add new messages,
+to use the IMU. Currently the extensions are called Automotive Dead
+Reckoning (ADR), and Untethered Dead Reckoning (UDR). ADR is similar
+to UDR, with the addition of Wheel Tick information for improved
+performance.
+
+The examples in this section are only for ADR or UDR receivers that have
+protocol version (protVer) of 19.20 or higher. If your receiver does not
+meet this requirement, then you can skip this section.
+
+A NEO-M8U, with UDR, looks like this:
+
+----
+$ ubxtool -p MON-VER
+UBX-MON-VER:
+  swVersion EXT CORE 3.01 (86c0ce)
+  hwVersion 00080000
+  extension ROM BASE 2.01 (75331)
+  extension FWVER=UDR 1.50
+  extension PROTVER=19.20
+  extension MOD=NEO-M8U-0
+  extension FIS=0xEF4015 (200061)
+  extension GPS;GLO;GAL;BDS
+  extension SBAS;IMES;QZSS
+[...]
+----
+
+ADR/UDR add two new messages classes: External Sensor Fusion (UBX-ESF-),
+amd High Navigation Rate (UBX-HNR-),  See the u-blox documentation for
+all the nitty gritty details.
+
+You can poll your receiver for most of the possible UBX-ESF- and UBX-HNR-
+messages this way:
+
+----
+$ ubxtool -p ESF -v 2
+[...]
+
+UBX-CFG-ESFA:
+ version 0 reserved1 x50000000 0 0 accelRmsThdl 32 frequency 0
+  latency 0 accuracy 0 reserved2 x0
+
+UBX-CFG-ESFALG:
+ bitfield x20a88800 aw 0 pitch 0 roll 0
+    bitfield () version 0
+
+UBX-CFG-ESFG:
+ version 0 reserved1 x10000000 0 0 tcTableSaveRate 1200
+  gyroRmsThdl 132 frequency 0 latency 0 accuracy 0
+  reserved2 x0
+[...]
+
+UBX-ESF-STATUS:
+ iTOW 519517000 version 2 reserved1 20 2 0 0 0 0 0
+   fusionMode 0 reserved2 0 numSens 6
+     fusionMode (Initialization mode)
+   sensStatus1 85 sensStatus2 4 freq 10 faults 0
+      type (gyro z) used No ready Yes
+   sensStatus1 8d sensStatus2 4 freq 10 faults 0
+      type (gyro y) used No ready Yes
+   sensStatus1 8e sensStatus2 4 freq 10 faults 0
+      type (gyro x) used No ready Yes
+   sensStatus1 90 sensStatus2 4 freq 10 faults 0
+      type (accel x) used No ready Yes
+   sensStatus1 91 sensStatus2 4 freq 10 faults 0
+      type (accel y) used No ready Yes
+   sensStatus1 92 sensStatus2 4 freq 10 faults 0
+      type (accel z) used No ready Yes
+
+UBX-ESF-ALG:
+ iTOW 519517000 version 1 flags x90 error x0 reserved1 x20
+   yaw 0 pitch 0 roll 0
+   flags () status (user-defined/fixed angles)
+   error ()
+
+UBX-ESF-INS:
+ bitfield0 x1 reserved1 x0 iTOW 519517000
+   xAngRate 0 yAngRate 0 zAngRate 0
+   xAccel 0 yAccel 0 zAccel 0
+   bitfield0 (version 1 )
+[...]
+
+$ ubxtool -p HNR -v 2
+[...]
+UBX-CFG-HNR:
+ highNavRate 10 reserved 0 0 0
+
+UBX-HNR-PVT:
+  iTOW 519523700 time 2021/6/19 00:18:25 valid x37
+  nano 700000003 gpsFix 3 flags x1d reserved1 x1b57
+  lon -1213140584 lat 440688360 height 1109033 hMSL 1130383
+  gSpeed 14 speed 23 headMot 23505708 headVeh 23505708
+  hAcc 2057 vAcc 5293 sAcc 277 headAcc 3542198 reserved2 xfffffffe
+    valid (validDate ValidTime fullyResolved)
+    gpsFix (3D)
+    flags (GpsFixOK WKNSET TOWSET headVehValid)
+
+UBX-HNR-ATT:
+  iTOW 519523700 version 1 reserved1 x32 35 2e
+  roll 0 pitch 7874389 heading 23505708
+  accRoll 2000000 accPitch 4337821 accHeading 3542198
+
+UBX-HNR-INS:
+  bitfield0 x332c4000 reserved1 x2c38312c iTOW 519523700
+  xAngRate 0 yAngRate 0 zAngRate 0
+  xAccel 0 zAccel 0 zAccel 0
+    version 0
+    bitfield0 ()
+[...]
+----
+
+Sadly UBX-ESF-MEAS and UBX-ESF-RAW can not be polled.
+
+You paid extra for those messages, so you will want to enable then to
+be send periodically.
+
+----
+$ ubxtool -e ESF
+$ ubxtool -e HNR
+----
+
+That does not enable UBX-ESF-MEAS and UBX-ESF-RAW as they are a flood
+of raw data, reported in JSON ATT, that is hard to process.  To see
+them, just enable them as you enable any other periodic messages:
+
+----
+$ ubxtool -P 19 -p CFG-MSG,0x10,2,1
+$ ubxtool -P 19 -p CFG-MSG,0x10,3,1
+----
+
+The trailing 1 enables the messages.  When you tire of the data, replace the
+1 with a zero to disable them.  Unlike other messages, the message rate
+can not be changed.
+
+To see the results:
+
+----
+$ ubxtool -v 2
+[...]
+UBX-ESF-MEAS:
+ timetag 273945517 flags x2018 id 0
+     dataType  14 dataField    4816
+     dataType  13 dataField   -4867
+     dataType   5 dataField   -3749
+     dataType  12 dataField    3895
+   calibTtag 273945517
+
+UBX-ESF-RAW:
+ reserved1 x105413ae blocks 70
+   data_type  16 data     -619 sTtag 5808411
+   data_type  17 data    -4333 sTtag 5808411
+   data_type  18 data     8661 sTtag 5808411
+   data_type  14 data     5276 sTtag 5808411
+   data_type  13 data    -5214 sTtag 5808411
+   data_type   5 data    -3435 sTtag 5808411
+   data_type  12 data     3895 sTtag 5808411
+   data_type  16 data     -599 sTtag 5808663
+   data_type  17 data    -4349 sTtag 5808663
+   data_type  18 data     8650 sTtag 5808663
+   data_type  14 data     5307 sTtag 5808663
+   data_type  13 data    -4715 sTtag 5808663
+   data_type   5 data    -3435 sTtag 5808663
+   data_type  12 data     3898 sTtag 5808663
+   data_type  16 data     -613 sTtag 5808918
+   data_type  17 data    -4344 sTtag 5808918
+   data_type  18 data     8667 sTtag 5808918
+   data_type  14 data     4995 sTtag 5808918
+   data_type  13 data    -4683 sTtag 5808918
+   data_type   5 data    -3809 sTtag 5808918
+   data_type  12 data     3894 sTtag 5808918
+   data_type  16 data     -621 sTtag 5809171
+   data_type  17 data    -4319 sTtag 5809171
+   data_type  18 data     8662 sTtag 5809171
+   data_type  14 data     4526 sTtag 5809171
+   data_type  13 data    -4902 sTtag 5809171
+   data_type   5 data    -3778 sTtag 5809171
+   data_type  12 data     3895 sTtag 5809171
+   data_type  16 data     -623 sTtag 5809423
+   data_type  17 data    -4319 sTtag 5809423
+   data_type  18 data     8672 sTtag 5809423
+   data_type  14 data     4401 sTtag 5809423
+   data_type  13 data    -4777 sTtag 5809423
+   data_type   5 data    -3965 sTtag 5809423
+   data_type  12 data     3894 sTtag 5809423
+   data_type  16 data     -630 sTtag 5809677
+   data_type  17 data    -4324 sTtag 5809677
+   data_type  18 data     8659 sTtag 5809677
+   data_type  14 data     4682 sTtag 5809677
+   data_type  13 data    -4871 sTtag 5809677
+   data_type   5 data    -4059 sTtag 5809677
+   data_type  12 data     3895 sTtag 5809677
+   data_type  16 data     -618 sTtag 5809930
+   data_type  17 data    -4326 sTtag 5809930
+   data_type  18 data     8672 sTtag 5809930
+   data_type  14 data     4682 sTtag 5809930
+   data_type  13 data    -4496 sTtag 5809930
+   data_type   5 data    -3497 sTtag 5809930
+   data_type  12 data     3896 sTtag 5809930
+   data_type  16 data     -608 sTtag 5810204
+   data_type  17 data    -4330 sTtag 5810204
+   data_type  18 data     8671 sTtag 5810204
+   data_type  14 data     4839 sTtag 5810204
+   data_type  13 data    -4465 sTtag 5810204
+   data_type   5 data    -3622 sTtag 5810204
+   data_type  12 data     3894 sTtag 5810204
+   data_type  16 data     -615 sTtag 5810457
+   data_type  17 data    -4333 sTtag 5810457
+   data_type  18 data     8663 sTtag 5810457
+   data_type  14 data     4870 sTtag 5810457
+   data_type  13 data    -4715 sTtag 5810457
+   data_type   5 data    -3528 sTtag 5810457
+   data_type  12 data     3895 sTtag 5810457
+   data_type  16 data     -607 sTtag 5810711
+   data_type  17 data    -4338 sTtag 5810711
+   data_type  18 data     8680 sTtag 5810711
+   data_type  14 data     4995 sTtag 5810711
+   data_type  13 data    -5089 sTtag 5810711
+   data_type   5 data    -3372 sTtag 5810711
+   data_type  12 data     3889 sTtag 5810711
+
+UBX-ESF-MEAS:
+ timetag 273945624 flags x1818 id 0
+     dataType  16 dataField    -612
+     dataType  17 dataField   -4332
+     dataType  18 dataField    8671
+   calibTtag 273945624
+
+UBX-ESF-MEAS:
+ timetag 273945619 flags x2018 id 0
+     dataType  14 dataField    4735
+     dataType  13 dataField   -4848
+     dataType   5 dataField   -3693
+     dataType  12 dataField    3894
+   calibTtag 273945619
+[...]
+----
+
+Notice the UBX-ESF-MEAS sample time stamp (timeTag) is in arbitrary
+units, and jumps forward and back!  The UBX-ESF-RAW sTtag is in
+unrelated units, but at least always increases.
+
+The receiver insists on completing an autoconfiguration mode before
+entering fusion mode.  That requires driving the receiver around in
+a car.  You can partially, but not completely, disable this with the
+doAutoMntAlg flag:
+
+----
+$ ubxtool -p CFG-ESFALG,0
+----
+
+== Timepulse
+Some U-blox receivers provide one or more pins delivering a Timepulse (TP)
+signal. This signal can be configured in terms of pulse period (or frequency),
+pulse length (or duty cycle) and polarity. It is also possible to define
+different signal behavior depending on whether the receiver is locked to
+ GPS time.
+
+Timepulse signals are configured using the UBX-CFG-TP5 message. This is
+also the message sent when you enable and disable the TIMEPULSE pin by
+means of the PPS option. In particular, -d PPS is actually a shortcut
+for:
+
+----
+$ ubxtool -p CFG-TP5,,,,,,,,,0x76
+----
+
+While -e PPS is a shortcut for:
+
+----
+$ ubxtool -p CFG-TP5,,,,,,,,,0x77
+----
+
+UBX-CFG-TP5 messages can take several forms. For example, to
+poll the current Timepulse configuration for the TIMEPULSE and
+TIMEPULSE2 pins respectively:
+
+----
+$ ubxtool -p CFG-TP5,0
+[...]
+UBX-CFG-TP5:
+  tpIdx 0 version 0 reserved1 0
+  antCableDelay 2 rfGroupDelay 0 freqPeriod 1000000 freqPeriodLock 1000000
+  pulseLenRatio 0 pulseLenRatioLock 100000 userConfigDelay 0
+  flags x77
+$ ubxtool -p CFG-TP5,1
+[...]
+UBX-CFG-TP5:
+  tpIdx 1 version 0 reserved1 0
+  antCableDelay 2 rfGroupDelay 0 freqPeriod 4 freqPeriodLock 1
+  pulseLenRatio 125000 pulseLenRatioLock 100000 userConfigDelay 0
+  flags xfe
+----
+
+=== Timepulse period and length
+Timepulse settings can be specified in two ways: period/length (in
+microseconds) and frequency/duty cycle (in Hz and fractions of 2^32^-1
+respectively).
+
+Let us say you want 1 PPS with 100 ms pulse length in the absence of lock
+and 4 PPS with 25 ms length in the presence of it in the TIMEPULSE pin.
+You can specify this either in period/length form:
+
+----
+$ ubxtool -p CFG-TP5,0,,,1000000,250000,100000,25000,,0x77
+----
+
+or in frequency/duty cycle form:
+
+----
+$ ubxtool -p CFG-TP5,0,,,1,4,429496729,429496729,,0x6f
+----
+
+in which 429496729 represents a 10% duty cycle (as it is simply the
+10% of 2^32^-1 = 4294967295).
+
+Duty cycles can also be specified in hexadecimal form. For example,
+if you wanted a 50% duty cycle instead, you could do:
+
+----
+$ ubxtool -p CFG-TP5,0,,,1,4,0x80000000,0x80000000,,0x6f
+----
+
+== Saving U-blox configuration
+
+Now that you have your GNSS receiver configuration just the way you want
+it, you will want to save it.  Saving is very dependent on your receiver
+configuration.  For now, we'll look at the legacy, pre-9, way of doing
+things.
+
+A u-blox receiver may have any, all, or none of: Battery backed RAM (BBR),
+Flash, Electrically Erasable Programmable ROM (EEPROM) and SPI Flash.
+If you have BBR that uses a real battery, the battery will only last a few
+years.  Some BBR uses a Super Capacitor that will not degrade with age.
+
+The current configuration is stored in RAM, and will disappear on power
+loss, device reset, configuration load, or configuration change.
+
+It is not easy to tell what storage options are available.  There may
+even be none.  You can sometimes tell if your device has flash with
+MON-VER:
+
+----
+$ ubxtool -p MON-VER -P 27.12
+[...]
+UBX-MON-VER:
+  swVersion EXT CORE 1.00 (f10c36)
+  hwVersion 00190000
+  extension ROM BASE 0x118B2060
+  extension FWVER=HPG 1.13
+  extension PROTVER=27.12
+  extension MOD=ZED-F9P
+  extension GPS;GLO;GAL;BDS
+  extension SBAS;QZSS
+----
+
+"swVersion EXT CORE" means your firmware loaded from FLASH memory, so
+you have FLASH memory.  It also means that you can update the firmware
+on your device.
+
+If you have no FLASH, then you will see "swVersion ROM CORE":
+
+----
+$ ubxtool -p MON-VER -P 18
+[...]
+UBX-MON-VER:
+  swVersion ROM CORE 3.01 (107888)
+  hwVersion 00080000
+  extension FWVER=SPG 3.01
+  extension PROTVER=18.00
+  extension GPS;GLO;GAL;BDS
+  extension SBAS;IMES;QZSS
+----
+
+The only way to detect the other storage options is to try to store
+into, and load from, each storage option.  And see which worked.  I
+leave that as an exercise for the reader.  Ubxtool just tries to store
+everywhere and see what sticks.
+
+First we need a data item to store.  The Dynamic Platform Model (dynModel)
+is a common one to change.  See what it is currently:
+
+----
+$ ubxtool -p CFG-NAV5  -P 27 -v 2
+UBX-CFG-NAV5:
+ mask 0xffff dynModel 0 fixmode 3 fixedAlt 0 FixedAltVar 10000
+ minElev 10 drLimit 0 pDop 250 tDop 250 pAcc 100 tAcc 350
+ staticHoldThresh 0 dgpsTimeOut 60 cnoThreshNumSVs 0
+ cnoThresh 0 res 0 staticHoldMaxDist 0 utcStandard 0
+ reserved x0 0
+   dynModel (Portable) fixMode (Auto 2D/3D) utcStandard (Default)
+   mask (dyn minEl posFixMode drLim posMask timeMask staticHoldMask
+         dgpsMask cnoThreshold utc)
+----
+
+You can see that dynModel is set to "Portable" (0).  The most common
+default setting.  But you want to use your receiver on your boat, so you
+want to set dynModel to "Sea" (5).  Then verify that worked:
+
+----
+$ ubxtool -p MODEL,5  -P 27 -v 2
+connected to tcp://localhost:2947
+ubxtool: poll MODEL,5
+
+sent:
+[...]
+UBX-CFG-NAV5:
+ mask 0x1 dynModel 5 fixmode 0 fixedAlt 0 FixedAltVar 0
+ minElev 0 drLimit 0 pDop 0 tDop 0 pAcc 0 tAcc 0
+ staticHoldThresh 0 dgpsTimeOut 0 cnoThreshNumSVs 0
+ cnoThresh 0 res 0 staticHoldMaxDist 0 utcStandard 0
+ reserved x0 0
+   dynModel (Sea) fixMode (Unk) utcStandard (Default)
+   mask ()
+[...]
+
+$ ubxtool -p CFG-NAV5  -P 27 -v 2
+[...]
+UBX-CFG-NAV5:
+ mask 0xffff dynModel 5 fixmode 3 fixedAlt 0 FixedAltVar 10000
+ minElev 10 drLimit 0 pDop 250 tDop 250 pAcc 100 tAcc 350
+ staticHoldThresh 0 dgpsTimeOut 60 cnoThreshNumSVs 0
+ cnoThresh 0 res 0 staticHoldMaxDist 0 utcStandard 0
+ reserved x0 0
+   dynModel (Sea) fixMode (Auto 2D/3D) utcStandard (Default)
+   mask (dyn minEl posFixMode drLim posMask timeMask staticHoldMask
+         dgpsMask cnoThreshold utc)
+----
+
+It did, but if we now power down the receiver, then it will revert to
+the last saved configuration or default.  So we want to save the current
+configuration in RAM, as much as possible, to whatever storage we have,
+if possible.  The "-p SAVE" option does that:
+
+----
+$ ubxtool -p SAVE  -P 27 -v 2
+[...]
+UBX-CFG-CFG:
+  clearMask: 0x0 ()
+  saveMask: 0xf1f (ioPort msgConf infMsg navConf rxmConf senConf rinvConf
+                   antConf logConf)
+  loadMask: 0xf1f (ioPort msgConf infMsg navConf rxmConf senConf rinvConf
+                   antConf logConf)
+  deviceMask: 0x17 (devBBR devFlash devEEPROM devSpiFlash)
+----
+
+You can now power down your receiver.  Power it back up, and verify
+with "-p CFG-NAV5" that dynModel "Sea" was saved.  Or, most likely, for
+almost all GPS mice, not.
+
+=== With Configuration Items
+
+UBX-CFG-CFG, used by "-p SAVE", is deprecated in protocol versions
+greater than, or equal to, 23.01.  It also works differently than before.  So on
+newer receivers you should clear, save, and load configurations with
+Configuration Items.  Before continuing this section, read the ubxtool
+man page on Configuration Items.
+
+As always, this example starts with a receiver that has just been reset
+to its default configuration.  Check the value of dynModel in all four
+possible layers.  One at a time, as the LAYER option to UBX-CFG-VALGET is
+an index..  The layers, as used by UBX-CFG-VALGET, are:
+
+* 0 -- RAM -- running value
+* 1 -- BBR -- value saved in BBR
+* 2 -- Flash -- value saved in Flash
+* 7 -- Default -- the firmware default value
+
+----
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,0
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 0 position 0
+  layers (ram)
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 0
+[...]
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,1
+[...]
+UBX-ACK-NAK:
+  NAK to Class x06 (CFG) ID x8b (VALGET)
+[...]
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,2
+[...]
+UBX-ACK-NAK:
+  NAK to Class x06 (CFG) ID x8b (VALGET)
+[...]
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,7
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 7 position 0
+  layers (default)
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 0
+----
+
+The current dynModel is 0, and the default dynModel is 0, but you see
+a NAK for BBR and Flash!  Nothing wrong there, it is just telling that
+dynModel is not set in BBR or Flash.  We can fix that, by setting
+dynModel to 2 (Stationary).  Here is how to do that in all layers,
+except the default layer.
+
+----
+$ ubxtool -z CFG-NAVSPG-DYNMODEL,2
+[...]
+ UBX-CFG-VALSET:
+ version 0 layer 0x7 transaction 0x0 reserved 0
+  layers (ram bbr flash) transaction (Transactionless)
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 2
+[...]
+$ ubxtool -g CFG-NAVSPG-DYNMODEL,2
+[...]
+UBX-CFG-VALGET:
+ version 1 layer 2 position 0
+  layers (flash)
+    item CFG-NAVSPG-DYNMODEL/0x20110021 val 2
+----
+
+The -z without the third, layer, argument sets all of: RAM, BBR, and
+flash.  After doing the above, you can read the value of dynModel saved
+in Flash.  Not shown, but also in RAM and BBR.
+
+The LAYER index is not to be confused by the LAYER bitmap used by
+UBX-CFG-VALDEL and UBX-CFG-VALSET.  The bitmap for those is:
+
+* 1 -- RAM layer
+* 2 -- BBR layer
+* 4 -- Flash layer
+
+== COPYING
+
+This file is Copyright 2020 by the GPSD project +
+SPDX-License-Identifier: BSD-2-clause
+
+// vim: set syntax=asciidoc:

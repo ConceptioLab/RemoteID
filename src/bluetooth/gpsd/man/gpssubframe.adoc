@@ -1,0 +1,139 @@
+= gpssubframe(1)
+:author: Gary E. Miller
+:date: 25 February 2021
+:email: gem@rellim.com.
+:keywords: gpsd, gps, subframe
+:manmanual: GPSD Documentation
+:mansource: GPSD Version {gpsdver}
+:robots: index,follow
+:sectlinks:
+:toc: macro
+:type: manpage
+:webfonts!:
+
+include::../www/inc-menu.adoc[]
+
+== NAME
+
+gpssubframe - tool to dump subframe sentences from gpsd
+
+== SYNOPSIS
+
+*gpssubframe* [OPTIONS] [server[:port[:device]]]
+
+*gpssubframe* -h
+
+*gpssubframe* -V
+
+== DESCRIPTION
+
+*gpssubframe* is a tool to connect to *gpsd* and dump decoded subframe data
+to stdout. This is only useful if your GNSS receiver can output GPS
+subframe messages, and is configured to do so. A working knowledge of
+IS-GPS-200 is also required. Keep your copy close at hand.
+
+*gpssubframe* does not require root privileges, but will run fine as
+root.  It can be run concurrently with other tools connecting to the
+local *gpsd* without causing problems.
+
+The program will accumulate subframe messages and output them by GPS
+satellite number on exit. By default the program never exits unless the
+user selects the number of seconds to run or number of messages to
+capture.
+
+By default *gpssubframe* connects to a *gpsd* running on the local host.
+Optionally a host, TCP/IP port number and remote device can be given.
+
+== OPTIONS
+
+*-?*, *-h*, *--help*::
+  -Print a usage message and exit.
+*-c COUNT*, *--count COUNT*::
+  Exit after COUNT subframe messages.
+*-D DEBUG*, *--debug DEBUG*::
+  Set level of debug. Must be integer. Default 0.
+*--desc*::
+  Print long descriptions.
+*--device DEVICE*::
+  Connect to device DEVICE on *gpsd* host.
+*-D LVL*, *--debug LVL*::
+  Set debug level to LVL.
+*--file FILE*::
+  Read gpsd JSON from FILE instead of from gpsd..
+*--host HOST*::
+  Connect to gpsd on host HOST.
+*--load LOADFILE*::
+  Load saved JSON Subframe, TPV, and RAW data trom LOADFILE.
+*-n COUNT*, *--count COUNT*::
+  Count of messages to parse. 0 to disable.
+*--port PORT*::
+  Connect to *gpsd* on port PORT.
+*--progress*::
+  Print progress reports as messages are received.
+*--satpos*::
+  Compute GPS satellite positions before exit.  If *--time* is given, the
+  positions will be calculated at the time.  Otherwise if a RAW message
+  was received, the measurement time in that message will be used.  The
+  last resort is to use the time from the last TPV message is used.
+*--save SAVEFILE*::
+  Save decoded Subframe data in SAVEFILE as JSON.  If present, the last
+  TPV and RAW JSON records will also be saved.
+*--test*::
+  Run *--satpos* selftest code.
+*--time SEC*::
+  Compute satellite position at time SEC in POSIX seconds.
+*-V*, *--version*::
+  Print the program version, then exit.
+*-x SEC*, *--seconds SEC*::
+  Seconds of messages to parse. 0 to disable.
+
+== ARGUMENTS
+
+By default, clients collect data from the local *gpsd* daemon running
+on localhost, using the default GPSD port 2947. The optional argument
+to any client may override this behavior: *[server[:port[:device]]]*
+
+For further explanation, and examples, see the *ARGUMENTS* section in
+the *gps*(1) man page
+
+== EXAMPLES
+
+First configure a u-blox 9-series to output subframe messages. Then have
+*gpssubframe* gather one complete set of subframes, then print the data
+organized by GPS satellite number.  Be sure to replace *-P 22* with the
+correct protocol version for your receiver. Then calculate and print the
+known satellite positions as well as the azimuth, elevation, and range
+from the current position:
+
+----
+ubxtool -P 22 -e SFRBX
+gpssubframe -x 750 --satpos
+----
+
+If staring at a blank screen for 12.5 minutes is too stressful, then
+enable progress messages:
+
+----
+gpssubframe -x 750 --satpos --progress
+----
+
+== RETURN VALUES
+
+*0*:: on success.
+*1*:: on failure
+
+== SEE ALSO
+
+*gpsd*(8), *gps*(1), *gpsprof*(1), *gpsfake*(1).
+
+IS-GPS-200 "NAVSTAR GPS Space Segment/Navigation User Segment
+Interfaces"
+
+== RESOURCES
+
+*Project web site:* {gpsdweb}
+
+== COPYING
+
+This file is Copyright 2020 by the GPSD project +
+SPDX-License-Identifier: BSD-2-clause

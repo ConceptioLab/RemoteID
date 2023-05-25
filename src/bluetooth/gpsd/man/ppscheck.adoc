@@ -1,0 +1,115 @@
+= ppscheck(8)
+:author: Eric S. Raymond
+:date: 6 January 2022
+:email: <esr@thyrsus.com.>
+:keywords: gps, PPS, ppscheck
+:manmanual: GPSD Documentation
+:mansource: GPSD, Version {gpsdver}
+:robots: index,follow
+:sectlinks:
+:toc: macro
+:type: manpage
+:webfonts!:
+
+include::../www/inc-menu.adoc[]
+
+== NAME
+
+ppscheck - tool to check a serial port for PPS
+
+== SYNOPSIS
+
+*ppscheck* [-?] [--help] [-p] [--pps] [--version] [-h] [-V]
+
+*ppscheck* [-m] device
+
+== DESCRIPTION
+
+*ppscheck* watches a specified serial port for transitions that might be
+PPS. It looks for changes in handshake lines CD, CTS, DSR, and RI by running
+ioctl(...., TIOCMIWAIT, ...) in a loop. When it sees a state change it
+emits a timestamped line of output dumping the state of the handshake
+signals. It's useful for checking whether a device is emitting PPS.
+
+*ppscheck* can run as a normal user, but that user must have permissions
+to read the target device.  Running under *sudo* may, or may not, work.
+Running as root will always work.
+
+To check the first serial port do this:
+
+----
+# ppscheck /dev/ttyS0
+----
+
+As a side effect, *ppscheck* will try to create the matching /dev/ppsX
+by setting the tty line discipline (ldisc) to N_PPS (18).  You should then
+have a device /dev/pps0.  Note that not all serial devices support
+ldisc N_PPS.
+
+You can now use *ppscheck* to see if the KPPS (RFC 2783) interface
+is working:
+
+----
+# ppscheck /dev/pps0
+----
+
+*ppscheck* is not intended for routine use, but rather for diagnostic
+purposes. Once you have verified a particular device can output PPS
+signals you will never need to use it again on that device.
+
+== OPTIONS
+
+The program accepts the following options:
+
+`+-?+, `+-h+, `+--help+`::
+  Print help message, then exit.
+`+-m+, `+--match+`::
+  Find PPS device that matches _device_.
+`+-p+, `+--pps+`::
+  Print active PPS devices, then exit.
+`+-V+, `+--version+`::
+  Dump version, then exit.
+`*-x SEC*, *--seconds SEC*`::
+  Exit after delay of SEC seconds.
+
+== ARGUMENTS
+
+The _device_ argument should be the pathname of a device. Such as
+/dev/ttyS0 or /dev/pps0. It will be the device monitored.
+
+For a tty device, each output line is the second and nanosecond parts
+of a timestamp followed by the names of the handshake signals then
+asserted. Off transitions may generate lines with no signals asserted.
+
+For a pps device, each output line will contain the assert and clear
+times last detected by KPPS.
+
+If you don't see output within a second, use *cgps*, *xgps*, or some
+other equivalent tool to check that your device has a satellite lock and
+is getting 3D fixes before giving up on the possibility of PPS.
+
+Check your cable. Cheap DB9 to DB9 cables such as those issued with
+UPSes often carry TXD/RXD/GND only, omitting handshake lines such as
+CD. Suspect this especially if the cable jacket looks too skinny to
+hold more than three leads!
+
+Most GPS that have built in USB do not support PPS. When in doubt,
+contact the vendor for confirmation that your device does supply PPS.
+
+== RETURN VALUES
+
+0:: OK
+1:: if the device counld not be opened, or some other failure
+
+== SEE ALSO
+
+*cgps*(1), *xgps*(1), *gpsd*(8)
+
+== RESOURCES
+
+*Project web site:* {gpsdweb}
+
+== COPYING
+
+This file is Copyright 2013 by the GPSD project +
+SPDX-License-Identifier: BSD-2-clause

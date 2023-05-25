@@ -1,0 +1,271 @@
+= gpscsv(1)
+:author: Gary E. Miller
+:date: 28 July 2021
+:email: gem@rellim.com.
+:keywords: gps, gpsd, gpscsv, csv
+:manmanual: GPSD Documentation
+:mansource: GPSD, Version {gpsdver}
+:robots: index,follow
+:sectlinks:
+:toc: macro
+:type: manpage
+:webfonts!:
+
+include::../www/inc-menu.adoc[]
+
+== NAME
+
+gpscsv - dump the JSON output from gpsd as CSV
+
+== SYNOPSIS
+
+*gpscsv* [OPTIONS] [host[:port[:device]]]
+
+*gpscsv* -h
+
+*gpscsv* -V
+
+== DESCRIPTION
+
+*gpscsv* is a simple Python program for reading *gpsd* JSON data streams
+and outputting them in Comma Separated Values (CSV) format. It takes
+input from a specified *gpsd* and reports to standard output. The program
+runs until the *gpsd* dies, "*-n COUNT*" messages are processed,
+"*-x SECONDS*" have passed, or it is interrupted by ^C or other means.
+
+*gpscsv* can only collect data that your *gpsd* is already sending.  Use
+*gpspipe* to see what JSON message classes it is sending.
+
+One good use of *gpscsv* is to create CSV files for use with the gnuplot
+program.
+
+*gpscsv* does not need root, but will run fine as root.
+
+== OPTIONS
+
+The program accepts the following options:
+
+*-?*, *-h*, *--help*::
+  Show help information and exit.
+*-c MCLASS*, *--class MCLASS*::
+  Select the JSON class messages of type MCLASS. Overrides the default
+  class of TPV.  See the <<Classes>> section below for more information.
+*--cvt-isotime*::
+  Convert fields named "time" from ISO time to UNIX time.
+*-D LVL*, *--debug LVL*::
+  Set debug level to LVL. Default 0. Higher arguments than 0 produce
+  more debug output.
+*--device DEVICE*::
+  The DEVICE on the *gpsd* to connect to. Defaults to all.
+*-f FIELDS*, *-fields FIELDS*::
+  The FIELDS from the JSON message to dump to the output. Set FIELD to
+  empty ('') for all initially seen fields. Default varies by CLASS.
+*--file FILE*::
+  Read JSON from FILE instead of from *gpsd*.
+*--header HEADER*::
+  Set header style to HEADER. 0 for no header, 1 output fields as
+  header, 2 send fields as a comment ('#'). Defaults to 1.
+*--host HOST*::
+  Connect to the *gpsd* on HOST. Defaults to localhost.
+*-n COUNT*, *--count COUNT*::
+  Exit after outputting COUNT records. Set COUNT to 0 to disable.
+  Default is 0
+*--port PORT*::
+  Use PORT to connect to *gpsd*. Defaults to 2947.
+*--separator SEPARATOR*::
+  Use SEPARATOR as the field separator. Default separator is a comma
+  (',').
+*-V*, *--version*::
+  Show *gpscsv* version, and exit.
+*-x SECONDS*, *--seconds SECONDS*::
+  Exit after SECONDS number of seconds have passed. Set SECONDS to 0 to
+  disable. Default is 0
+
+All the above individual options may be specified multiple times, but  t
+only the last one off each will be used.
+
+== Classes
+
+Some of the *gpsd* JSON message classes include sub-classes.  *gpscsv*
+allows direct access to them using a meta-class (MCLASS).
+
+|===
+|MCLASS |Class |Description
+
+|ALMANAC |SUBFRAME | ALMANAC from SUBFRAME JSON
+|HEALTH |SUBFRAME | HEALTH from SUBFRAME JSON
+|HEALTH2 |SUBFRAME | HEALTH2 from SUBFRAME JSON
+|IONO |SUBFRAME | IONO from SUBFRAME JSON
+|NMCT |SUBFRAME | NMCT from SUBFRAME JSON
+|SUBFRAME1 |SUBFRAME | SUBFRAME1 (Ephemeris 1) from SUBFRAME JSON
+|SUBFRAME2 |SUBFRAME | SUBFRAME2 (Ephemeris 2) from SUBFRAME JSON
+|SUBFRAME3 |SUBFRAME | SUBFRAME3 (Ephemeris 3) from SUBFRAME JSON
+|SAT |SKY | Individual satellites from SKY
+|SKY |SKY | The basic parts of SKY JSON
+|TPV |TPV | The basic parts of TPV JSON
+
+|===
+
+== ARGUMENTS
+
+By default, clients collect data from the local *gpsd* daemon running
+on localhost, using the default GPSD port 2947. The optional argument
+to any client may override this behavior: *[server[:port[:device]]]*
+
+For further explanation, and examples, see the *ARGUMENTS* section in
+the *gps*(1) man page
+
+== EXAMPLES
+
+Some basic standalone examples:
+
+Grab three cycles of TPV data:
+
+----
+$ gpscsv -c TPV -n 3
+time,lat,lon,altHAE
+2021-07-28T22:38:37.000Z,44.0688638,-121.3140643,1108.223
+2021-07-26T22:38:37.000Z,44.068863833,-121.314064333,1108.3
+2021-07-28T22:38:38.000Z,44.0688637,-121.314065,1108.363
+----
+
+Grab one set of satellite data:
+
+----
+$ gpscsv -c SAT -n 1
+time,gnssid,svid,PRN,az,el,ss,used,health
+2021-07-28T22:37:46.000Z,0,8,8,311.0,28.0,33.0,True,1
+2021-07-28T22:37:46.000Z,0,10,10,290.0,74.0,50.0,True,1
+2021-07-28T22:37:46.000Z,0,15,15,45.0,18.0,31.0,False,1
+2021-07-28T22:37:46.000Z,0,16,16,244.0,7.0,23.0,True,1
+2021-07-28T22:37:46.000Z,0,18,18,109.0,43.0,37.0,True,1
+2021-07-28T22:37:46.000Z,0,23,23,49.0,62.0,38.0,True,1
+2021-07-28T22:37:46.000Z,0,24,24,87.0,16.0,28.0,True,1
+2021-07-28T22:37:46.000Z,0,27,27,280.0,52.0,42.0,True,1
+2021-07-28T22:37:46.000Z,0,32,32,188.0,32.0,42.0,True,1
+2021-07-28T22:37:46.000Z,5,3,195,305.0,6.0,13.0,False,1
+2021-07-28T22:37:46.000Z,6,2,66,38.0,8.0,21.0,False,1
+2021-07-28T22:37:46.000Z,6,3,67,34.0,60.0,32.0,True,1
+2021-07-28T22:37:46.000Z,6,4,68,226.0,63.0,34.0,True,1
+2021-07-28T22:37:46.000Z,6,5,69,220.0,12.0,32.0,True,1
+2021-07-28T22:37:46.000Z,6,11,75,-999,4.0,0.0,False,2
+2021-07-28T22:37:46.000Z,6,12,76,47.0,0.0,0.0,False,1
+2021-07-28T22:37:46.000Z,6,17,81,142.0,8.0,31.0,True,1
+2021-07-28T22:37:46.000Z,6,18,82,138.0,57.0,40.0,True,1
+2021-07-28T22:37:46.000Z,6,19,83,333.0,70.0,29.0,True,1
+2021-07-28T22:37:46.000Z,6,20,84,323.0,10.0,0.0,False,1
+----
+
+=== Plot Examples
+
+Some plot examples, do them in exact order shown:
+
+Grab 100 samples of time,lat,lon,altHAE:
+
+----
+  $ gpscsv -n 100 --cvt-isotime  > tpv.dat
+----
+
+Grab 100 samples of time,epx,epy,epv,eph,sep
+
+----
+  $ gpscsv -n 100 --cvt-isotime -f time,epx,epy,epv,eph,sep > ep.dat
+----
+
+Grab 100 samples of time,xdop,ydop,vdop,tdop,hdop,gdop,pdop
+
+----
+  $ gpscsv -n 100 --cvt-isotime -c SKY  > sky.dat
+----
+
+Grab 100 samples of time,nSat,uSat
+
+----
+  $ gpscsv -n 100 --cvt-isotime -c SKY -f time,nSat,uSat  > sat.dat
+----
+
+=== Viewing CSV data with gnuplot
+
+Start gnuplot in interactive mode:
+
+----
+  $ gnuplot
+----
+
+Some gnuplot housekeeping:
+
+----
+  # this are csv files
+  gnuplot> set datafile separator ','
+  # use the first line as title
+  gnuplot> set key autotitle columnhead
+  # X axis is UNIT time in seconds.
+  gnuplot> set xdata time
+  gnuplot> set timefmt "%s"
+----
+
+Now to plot time vs latitude, using *tpv.dat* from above:
+
+----
+  gnuplot> plot 'tpv.dat' using 1:2
+----
+
+Then to plot longitude and altHAE, in separate plots:
+
+----
+  gnuplot> plot 'tpv.dat' using 1:3
+  gnuplot> plot 'tpv.dat' using 1:4
+----
+
+Put both latitude and longitude on one plot:
+
+----
+  gnuplot> set y2tics
+  gnuplot> plot 'tpv.dat' using 1:2, '' using 1:3 axes x1y2
+----
+
+Plot epx, epy, epv, eph, and sep in one plot, using *ep.dat* from above:
+
+----
+  gnuplot> plot 'ep.dat' using 1:2, '' using 1:3, \
+           '' using 1:4, '' using 1:5, '' using 1:6
+----
+
+Plot all the DOPs on one plot, from *sky.dat* above:
+
+----
+  gnuplot> plot 'sky.dat' using 1:2, '' using 1:3, '' using 1:4, \
+           '' using 1:5, '' using 1:6, '' using 1:7, '' using 1:8
+----
+
+Plot nSat and uSat together:
+
+----
+  gnuplot> plot 'sat.dat' using 1:2, '' using 1:3
+----
+
+Lat/lon scatter plot:
+
+----
+  # x is no longer time
+  gnuplot> set xdata
+  gnuplot> plot 'tpv.dat' using 3:2 title 'fix'
+----
+
+== RETURN VALUES
+
+*0*:: on success.
+*1*:: on failure
+
+== SEE ALSO
+
+*gpspipe*(1), *gpsd_json*(5), *gpsd*(8), *gnuplot*(1)
+
+== RESOURCES
+
+*Project web site:* {gpsdweb}
+
+== COPYING
+
+This file is Copyright 2020 by the GPSD project +
+SPDX-License-Identifier: BSD-2-clause

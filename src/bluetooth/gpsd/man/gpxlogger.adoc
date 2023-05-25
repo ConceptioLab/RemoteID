@@ -1,0 +1,106 @@
+= gpxlogger(1)
+Amaury Jacquot; Petter Reinholdtsen; Chris Kuethe
+:email_1: sxpert@sxpert.org
+:email_2: pere@hungry.com
+:email_3: chris.kuethe@gmail.com
+:date: 25 February 2021
+:keywords: gps, gpsd, gpx, gpxlogger
+:manmanual: GPSD Documentation
+:mansource: GPSD, Version {gpsdver}
+:robots: index,follow
+:sectlinks:
+:toc: macro
+:type: manpage
+:webfonts!:
+
+include::../www/inc-menu.adoc[]
+
+== NAME
+
+gpxlogger - Tool to connect to gpsd and generate a GPX file
+
+== SYNOPSIS
+
+*gpxlogger* [OPTIONS] [server[:port[:device]]]
+
+*gpxlogger* -h
+
+*gpxlogger* -V
+
+== DESCRIPTION
+
+*gpslogger* program collects fixes from *gpsd* and logs them to standard output
+in GPX format, an XML profile for track logging.  It does not need
+to run as root, but can run as root.
+
+The output may be composed of multiple tracks. A new track is created if
+there's no fix written for an interval specified by the
+*-i* or *--interval* option and defaulting to 5 seconds.
+
+*gpxlogger* can use any of the export methods that *gpsd* supports. For
+a list of these methods, use the *-l* or *--exports* option. To force
+a method, give the *-e*, *--export* option folloed by one of the
+colon-terminated method names from the *-l*, *--exports* table.
+
+== OPTIONS
+
+*-?*, *-h*, *--help*::
+  Print a summary of options and then exit.
+*-d*, *--daemonize*::
+  Run as a daemon in background. It requires the *-f, --output*
+  option, which directs output to a specified logfile.
+*-D LVL*, *--debug LVL*::
+  Sets the debug level, it is primarily for troubleshooting. It enables
+  various progress messages to standard error.
+*-e METHOD*, *--export METHOD*::
+  If D-Bus support is available on the host, GPSD is configured to use
+  it, and *-e dbus*, or *--export dbus* is specified, this program
+  listens to DBUS broadcasts from *gpsd* via org.gpsd.fix.
++
+With *-e sockets*, or if sockets is the method defaulted to, you may
+give a [server[:port[:device]]] specification as arguments.  See the
+*ARGUMENTS* section below for more details.
++
+With *-e shm, --export shm* this program will listen to the local
+*gpsd* using shared memory.
+
+*-i SECONDS*, *--interval SECONDS*::
+  A new track is created if there's no fix written for an interval of
+  SECONDS. Defaulting to 5 seconds.
+*-l*, *--exports*::
+  List all possible options for *-e, --export*.
+*-m MINMOVE*, *--minmove MINMOVE*::
+  Sets a minimum move distance in meters (it may include a fractional
+  decimal part). Motions shorter than this will not be logged.
+*-r*, *--reconnect*::
+  Retry when GPSd loses the fix. Without *-r*, *gpxlogger* would quit in
+  this case.
+*-V*, *--version*::
+  Dump the package version and exit.
+
+== ARGUMENTS
+
+By default, clients collect data from the local *gpsd* daemon running
+on localhost, using the default GPSD port 2947. The optional argument
+to any client may override this behavior: *[server[:port[:device]]]*
+
+For further explanation, and examples, see the *ARGUMENTS* section in
+the *gps*(1) man page
+
+== RETURN VALUES
+
+*0*:: on success.
+*1*:: on failure
+
+== SEE ALSO
+
+*gpsd*(8), *gps*(1)
+
+== RESOURCES
+
+*Project web site:* {gpsdweb}
+
+== COPYING
+
+This file is Copyright 2013 by the GPSD project +
+SPDX-License-Identifier: BSD-2-clause

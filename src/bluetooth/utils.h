@@ -13,7 +13,7 @@
 #define _UTILS_H_
 
 #include <stdbool.h>
-#include <opendroneid.h>
+#include "opendroneid.h"
 
 struct config_data {
     bool use_beacon;

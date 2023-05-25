@@ -1,0 +1,231 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head lang="en">
+   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <meta name="Author" content="Eric S. Raymond">
+   <meta name="Description" content="Blutooth setup instructions for GPSD">
+   <meta name="Keywords" content="GPS, gpsd, bluetooth">
+   <meta name="Revised" content="24 June 2020">
+   <meta name="robots" content="index,follow">
+   <link rel="stylesheet" href="main.css" type="text/css">
+   <title>Bluetooth and GPSD</title>
+</head>
+
+<body>
+
+<div id="Header">Bluetooth and <code>gpsd</code></div>
+
+<div id="Menu">
+    <img src="gpsd-logo-small.png" alt="Small gpsd Logo" height="126"
+    width="105"><br>
+    <a href="index.html">Home</a><br>
+    <a href="index.html#news">News</a><br>
+    <a href="index.html#install">Installation &amp; Building</a><br>
+    <a href="index.html#downloads">Downloads</a><br>
+    <a href="index.html#mailing-lists">Mailing lists</a><br>
+    <a href="index.html#documentation">Documentation</a><br>
+    <a href="faq.html">FAQ</a><br>
+    <a href="xgps-sample.html">Screenshots</a><br>
+    <a href="index.html#recipes">Recipes</a><br>
+    <a href="index.html#others">Other GPSDs</a><br>
+    <a href="hardware.html">Hardware</a><br>
+    <a href="for-vendors.html">For GPS Vendors</a><br>
+    <a href="wishlist.html">Wish List</a><br>
+    <a href="hall-of-shame.html">Hall of Shame</a><br>
+    <a href="troubleshooting.html">Troubleshooting Guide</a><br>
+    <a href="hacking.html">Hacker's Guide</a><br>
+    <a href="protocol-transition.html">Application Compatibility</a>
+    <a href="references.html">References</a><br>
+    <a href="history.html">History</a><br>
+    <a href="future.html">Future</a><br>
+
+    <a href='http://www.catb.org/hacker-emblem/'><img
+    src='glider.png' alt='hacker emblem' height="55" width="55"></a><br>
+
+    <script src="https://www.openhub.net/p/3944/widgets/project_thin_badge.js"></script>
+
+    <a href="https://validator.w3.org/check/referer"><img
+          src="html5.png"
+          alt="Valid HTML 5!" height="31" width="88"></a>
+</div>
+
+<div id="Content">
+
+<p>Bluetooth connections work with <code>gpsd</code> by leveraging the
+rfcomm serial port emulation.  Rfcomm provides a serial port interface
+to a BT device and has been designed to allow for automated
+connect/disconnect operations over Bluetooth.  The steps below will
+allow you to use your BT GPS device automatically whenever it is
+powered on and gpsd is running.</p>
+
+<p>Note that you must be logged in as root for most of these steps.</p>
+
+<h2>Installation</h2>
+
+<p>If your system comes with Bluetooth tools preinstalled (look for
+<img src="bt.png" alt="Bluetooth icon"> on your status bar) you can
+probably skip these steps.</p>
+
+<ol>
+<li><p>First, the Bluez protocol stack must be installed.  All the
+documentation can be found on <a
+href='http://bluez.sourceforge.net/'>http://bluez.sourceforge.net/</a>.</p></li>
+<li><p>Install bluetooth for your device with the "rfcomm" module to
+allow for serial port emulation.</p>
+
+<p>This procedure has been verified against Blues version 5.54, but
+should work with any recent version.</p></li>
+
+<li><p>Next, load the following modules:</p>
+<pre>
+        # modprobe hci_xxx (xxx depend on your type of device)
+        # modprobe bluez
+        # modprobe l2cap
+        # modprobe rfcomm
+</pre>
+</li>
+
+<li><p>If the modules have loaded successfully, type "hciconfig" and you
+should see your BT interface listed under the "hci0" name.  "hciconfig" is
+part of the Bluez stack.  Not all distributions install it by default.
+Gentoo requires USE="deprecated" with bluez to install hciconfig.</p></li>
+</ol>
+
+<h2>Configuration</h2>
+
+<ol>
+<li><p>Turn on your BT GPS device and scan for remote BT devices:</p>
+<pre>
+    # hciconfig hci0 up
+    # hcitool scan
+</pre>
+</li>
+
+<li><p>Write down the address of your BT GPS receiver (xx:xx:xx:xx:xx:xx).
+At this point, it is quite likely that passing the address to gpsd will work.</p></li>
+
+<li><p>If you're using a smartphone app to send your GPS data via
+Bluetooth Start the GPS app on your phone, altering any settings needed
+to make it send NMEA strings over Bluetooth.</p></li>
+
+<li><p>Check the protocol and channel that your device supports.</P>
+
+<pre>
+    # sdptool browse xx:xx:xx:xx:xx:xx
+</pre>
+
+<p>A smartphone app will look something like this in the output.  Note
+the channel number is 2:</p>
+
+<pre>
+  Service Name: GPS2BT
+  Service RecHandle: 0x1000b
+  Service Class ID List:
+    UUID 128: 00001101-0000-1000-8000-00805f9b34fb
+  Protocol Descriptor List:
+    "L2CAP" (0x0100)
+    "RFCOMM" (0x0003)
+      Channel: 2
+</pre>
+
+<p>A standalone Bluetooth GPS may look like this.  Note the channel
+number is 1:</p>
+
+<pre>
+  Service Name: SPP slave
+  Service RecHandle: 0x10000
+  Service Class ID List:
+    "Serial Port" (0x1101)
+  Protocol Descriptor List:
+    "L2CAP" (0x0100)
+    "RFCOMM" (0x0003)
+      Channel: 1
+  Language Base Attr List:
+    code_ISO639: 0x656e
+    encoding:    0x6a
+    base_offset: 0x100
+</pre>
+
+<p>The Service name will vary based on the app or device.  Write down the
+channel number and use it in the next step instead of channel 1. The channel
+number will likely vary each time the app is started, so you will probably
+need some scripting or other additional configuration to fix that. If gpsd or
+gpsctl is reporting "connection refused" it is likely that you have the
+wrong channel number.</p>
+
+<p>If you're using a smartphone app you will probably need to specify a
+channel other than 1.</p>
+</li>
+
+<li><p>The /etc/bluetooth/rfcomm.conf file is no longer used by rfcomm.
+Previous versions of this procedure used that file.<p>
+</li>
+
+<li><p>Bind rfcomm0 to the serial data channel, in this case 1, of the BT
+GPS.  Then verify it worked:</p>
+<pre>
+    # rfcomm bind rfcomm0 xx:xx:xx:xx:xx:xx 1
+    # rfcomm -a
+    rfcomm0: xx:xx:xx:xx:xx:xx channel 1 clean 
+    # ls /dev/rfcomm0
+    /dev/rfcomm0
+</pre>
+<p>You will now have a new device file, /dev/rfcomm0, that you will
+use for gpsd to connect to the BT GPS.
+</li>
+
+<li>
+<p>Under most Linux distros, GPSD is by default configured to start gpsd on
+a hotplug event announcing a USB GPS. You need to reconfigure the GPSD
+installation so the daemon will be started at boot time listening to
+/dev/rfcomm0 (it will still work with hotplugged USB GPSes after you
+do this).</p>
+
+<p>Under Debian and Ubuntu Linux, <code>"dpkg-reconfigure gpsd"</code>
+will start a dialog that will reconfigure the device for you. You
+will need to reboot for this change to take effect.</p>
+</li>
+
+<li><p>You may find it easier just to start gpsd manually.</p>
+<pre>
+    # gpsd -n /dev/rfcomm0
+</pre>
+</ol>
+
+<p>At this point, your system should be configured to use gpsd with
+your BT GPS device. You should test operation in the normal way
+described in the <a href="troubleshooting.html">Troubleshooting Guide</a>.</p>
+
+<h2>Known Issues:</h2>
+<ul>
+<li><p>Apparmor may silently prevent gpsd from using rfcomm.  Check
+your "dmesg" output for signs of Apparmor interference.</p></li>
+
+<li><p>Creating rfcomm to bind on startup, and then starting gpsd, is
+very init system dependent and is not covered here.</p>
+</li>
+
+<li>
+<p>In February 2009 it was reported that there are some issues with
+the Bluetooth stack in Ubuntu Intrepid. <a
+href="http://cris.bytesnblades.net/2009/02/20/starting-gpsd-automatically-with-a-bluetooth-gps/">This
+report advocates using a different Bluetooth device manager and describes some
+additional udev rules.</a></p>
+</li>
+</ul>
+
+<h2>Contributors:</h2>
+<ul>
+<li><p>Jean-Michel Bouffard</p></li>
+<li><p>Joshua Layne</p></li>
+<li><p>Lukasz Stelmach</p></li>
+<li><p>Bertolt Loprets</p></li>
+<li><p>Rob Shinn</p></li>
+<li><p>Tomáš Ebenlendr</p></li>
+</ul>
+
+<hr>
+<script src="datestamp.js"></script>
+</div>
+</body>
+</html>
