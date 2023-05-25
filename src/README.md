@@ -3,7 +3,7 @@
 *adv.c* funciona com o protocolo Remote ID zerado. Para criar um executável do caminho padrão e executar use:
 ```bash
 sudo apt-get install --reinstall -y bluez
-sudo gcc -o advLE ./src/bluetooth/advLE.c $(pkg-config --libs --cflags bluez) -lm
+sudo gcc -o adv5 ./src/bluetooth/adv5.c $(pkg-config --libs --cflags bluez libgps) -lm
 sudo ./advLE
 ```
 Lembre de ter bluez instalado em sua máquina.
