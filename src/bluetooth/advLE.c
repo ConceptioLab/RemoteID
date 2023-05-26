@@ -489,7 +489,7 @@ void gps_loop(struct gps_loop_args *args)
     {
         if (kill_program)
             break;
-        if (!gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS))
+        if (gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS))
         {
             printf("Socket not ready, retrying...\n");
             if (retries++ > MAX_GPS_WAIT_RETRIES)
