@@ -489,6 +489,7 @@ void gps_loop(struct gps_loop_args *args)
     {
         if (kill_program)
             break;
+
         int ret;
         ret = gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS);
         if (!ret)
@@ -497,6 +498,7 @@ void gps_loop(struct gps_loop_args *args)
             if (retries++ > MAX_GPS_WAIT_RETRIES)
             {
                 fprintf(stderr, "Max socket wait retries reached, exiting...");
+                kill_program = true;
                 args->exit_status = 1;
                 pthread_exit((void *)&args->exit_status);
             }
@@ -513,17 +515,17 @@ void gps_loop(struct gps_loop_args *args)
                 if (read_retries++ > MAX_GPS_READ_RETRIES)
                 {
                     fprintf(stderr, "Max socket read retries reached, exiting...");
-
+                    kill_program = true;
                     args->exit_status = 1;
                     pthread_exit((void *)&args->exit_status);
                 }
                 continue;
             }
             read_retries = 0;
+
+            process_gps_data(gpsdata, uasData);
         }
     }
-
-    process_gps_data(gpsdata, uasData);
     args->exit_status = 0;
     pthread_exit(&args->exit_status);
 }
