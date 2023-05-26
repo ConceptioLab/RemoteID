@@ -5,7 +5,7 @@
 int init_gps(struct fixsource_t* source, struct gps_data_t* gpsdata) {
     unsigned int flags = WATCH_ENABLE;
 
-    gpsd_source_spec("/dev/serial0", source);
+    gpsd_source_spec(NULL, source);
 
     if (0 != gps_open(source->server, source->port, gpsdata)) {
         return 1;
