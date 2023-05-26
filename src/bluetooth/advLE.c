@@ -487,12 +487,12 @@ void gps_loop(struct gps_loop_args *args)
     int read_retries = 0;
     while (true)
     {
+        if (kill_program)
+            break;
         int ret;
         ret = gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS);
         if (!ret)
         {
-            if (kill_program)
-                break;
             printf("Socket not ready, retrying...\n");
             if (retries++ > MAX_GPS_WAIT_RETRIES)
             {
@@ -549,12 +549,12 @@ int main(int argc, char *argv[])
     if (!config.use_gps) // Caso queira testar e não possua gps.
         fill_example_gps_data(&uasData);
 
+    signal(SIGINT, sig_handler);
+    signal(SIGKILL, sig_handler);
+    signal(SIGSTOP, sig_handler);
+    signal(SIGTERM, sig_handler);
     if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
     {
-        signal(SIGINT, sig_handler);
-        signal(SIGKILL, sig_handler);
-        signal(SIGSTOP, sig_handler);
-        signal(SIGTERM, sig_handler);
         if (init_gps(&source, &gpsdata) != 0)
         {
             fprintf(stderr,
