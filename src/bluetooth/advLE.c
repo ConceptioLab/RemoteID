@@ -45,11 +45,13 @@ struct gps_loop_args
     int exit_status;
 };
 
+// Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
 {
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
+// Configuração vindo dos argumentos ao executar cógido.
 static void parse_command_line(int argc, char *argv[], struct config_data *config)
 {
     if (argc == 1)
@@ -85,7 +87,7 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
     }
 }
 
-//Preenche os dados da nave
+// Preenche os dados da nave
 static void fill_example_data(struct ODID_UAS_Data *uasData)
 {
     srand(time(0));
@@ -142,7 +144,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
             MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
 }
 
-//Preenche os dados de GPS
+// Preenche os dados de GPS
 static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
 {
     srand(time(0));
@@ -165,7 +167,7 @@ static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
     uasData->Location.TimeStamp = 360.52f;
 }
 
-//Limpa adaptador bluetooth e gps
+// Limpa adaptador bluetooth e gps
 static void cleanup(int exit_code)
 {
     hci_close_dev(device_descriptor);
@@ -181,7 +183,7 @@ static void cleanup(int exit_code)
     exit(exit_code);
 }
 
-//Ativa o bluetooth para envio.
+// Ativa o bluetooth para envio.
 static int open_hci_device()
 {
     struct hci_filter flt; // Host Controller Interface filter
@@ -209,7 +211,7 @@ static int open_hci_device()
     return dd;
 }
 
-//Envia um comando de baixo nivel direto ao adaptador
+// Envia um comando de baixo nivel direto ao adaptador
 static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int length)
 {
     if (hci_send_cmd(dd, ogf, ocf, length, cmd_data) < 0)
@@ -263,13 +265,13 @@ static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int l
     }
 }
 
-//Mostra o endereço MAC aleatório no terminal.
+// Mostra o endereço MAC aleatório no terminal.
 void printMACAddress(const uint8_t *mac)
 {
     printf("%02X:%02X:%02X:%02X:%02X:%02X\n", mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
 }
 
-//Gera um endereço MAC aleatório
+// Gera um endereço MAC aleatório
 static void generate_random_mac_address(uint8_t *mac)
 {
     if (!mac)
@@ -282,7 +284,7 @@ static void generate_random_mac_address(uint8_t *mac)
     printMACAddress(mac);
 }
 
-//Reseta o adaptador
+// Reseta o adaptador
 static void hci_reset(int dd)
 {
     uint8_t ogf = OGF_HOST_CTL; // Opcode Group Field. LE Controller Commands
@@ -290,7 +292,7 @@ static void hci_reset(int dd)
     send_cmd(dd, ogf, ocf, NULL, 0);
 }
 
-//Lê features suportadads do adaptador
+// Lê features suportadads do adaptador
 static void hci_le_read_local_supported_features(int dd)
 {
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
@@ -298,7 +300,7 @@ static void hci_le_read_local_supported_features(int dd)
     send_cmd(dd, ogf, ocf, NULL, 0);
 }
 
-//Seta mac aleatório
+// Seta mac aleatório
 static void hci_le_set_random_address(int dd, const uint8_t *mac)
 {
     if (!mac)
@@ -312,7 +314,7 @@ static void hci_le_set_random_address(int dd, const uint8_t *mac)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-//Ativa o advertising
+// Ativa o advertising
 static void hci_le_set_advertising_enable(int dd)
 {
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
@@ -322,7 +324,7 @@ static void hci_le_set_advertising_enable(int dd)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-//Desativa o advertising
+// Desativa o advertising
 static void hci_le_set_advertising_disable(int dd)
 {
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
@@ -347,7 +349,7 @@ static void hci_le_set_advertising_set_random_address(int dd, uint8_t set, const
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-//Seta os parâmetros de advertising
+// Seta os parâmetros de advertising
 static void hci_le_set_advertising_parameters(int dd, int interval_ms)
 {
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
@@ -368,7 +370,7 @@ static void hci_le_set_advertising_parameters(int dd, int interval_ms)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-//Seta os dados de advertising
+// Seta os dados de advertising
 static void hci_le_set_advertising_data(int dd, const union ODID_Message_encoded *encoded, uint8_t msg_counter)
 {
     uint8_t ogf = OGF_LE_CTL; // Opcode Group Field. LE Controller Commands
@@ -388,13 +390,13 @@ static void hci_le_set_advertising_data(int dd, const union ODID_Message_encoded
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-//Envia mensagem
+// Envia mensagem
 void send_message(const union ODID_Message_encoded *encoded, uint8_t msg_counter)
 {
     hci_le_set_advertising_data(device_descriptor, encoded, msg_counter);
 }
 
-//Envia uma mensagem única
+// Envia uma mensagem única
 static void send_single_messages(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
     union ODID_Message_encoded encoded;
@@ -489,6 +491,8 @@ void gps_loop(struct gps_loop_args *args)
         ret = gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS);
         if (!ret)
         {
+            if (kill_program)
+                break;
             printf("Socket not ready, retrying...\n");
             if (retries++ > MAX_GPS_WAIT_RETRIES)
             {
@@ -534,10 +538,7 @@ static void sig_handler(int signo)
 
 int main(int argc, char *argv[])
 {
-
     parse_command_line(argc, argv, &config);
-
-    init_bluetooth(&config);
 
     signal(SIGINT, sig_handler);
     signal(SIGKILL, sig_handler);
@@ -548,9 +549,12 @@ int main(int argc, char *argv[])
     odid_initUasData(&uasData);
     fill_example_data(&uasData);
 
-    if (!config.use_gps) //Caso queira testar e não possua gps.
+    init_bluetooth(&config);
+
+    if (!config.use_gps) // Caso queira testar e não possua gps.
         fill_example_gps_data(&uasData);
-    else // Caso colocou o argumento g, e ativou o gps.
+
+    if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
     {
         if (init_gps(&source, &gpsdata) != 0)
         {
@@ -564,16 +568,22 @@ int main(int argc, char *argv[])
         args.gpsdata = &gpsdata;
         args.uasData = &uasData;
         pthread_create(&gps_thread, NULL, (void *)&gps_loop, &args);
+        while (true)
+        {
+            if (kill_program)
+                break;
+            send_single_messages(&uasData, &config);
+        }
     }
-
-    while (true)
+    else
     {
-        if (kill_program)
-            break;
-        send_single_messages(&uasData, &config);
+        while (true)
+        {
+            if (kill_program)
+                break;
+            send_single_messages(&uasData, &config);
+        }
     }
 
-    stop_transmit();
-
-    return 0;
+    cleanup(EXIT_SUCCESS);
 }
