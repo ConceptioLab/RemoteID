@@ -238,7 +238,7 @@ void gpsd_source_spec(const char *arg, struct fixsource_t *source)
     char *server, *colon1, *colon2, *skipto, *rbrk;
 
     memset(source, 0, sizeof(struct fixsource_t));
-    source->server = "localhost";
+    source->server = "tcp://localhost";
     source->port = DEFAULT_GPSD_PORT;
 
     if (NULL == arg ||
