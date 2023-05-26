@@ -540,11 +540,6 @@ int main(int argc, char *argv[])
 {
     parse_command_line(argc, argv, &config);
 
-    signal(SIGINT, sig_handler);
-    signal(SIGKILL, sig_handler);
-    signal(SIGSTOP, sig_handler);
-    signal(SIGTERM, sig_handler);
-
     struct ODID_UAS_Data uasData;
     odid_initUasData(&uasData);
     fill_example_data(&uasData);
@@ -556,6 +551,10 @@ int main(int argc, char *argv[])
 
     if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
     {
+        signal(SIGINT, sig_handler);
+        signal(SIGKILL, sig_handler);
+        signal(SIGSTOP, sig_handler);
+        signal(SIGTERM, sig_handler);
         if (init_gps(&source, &gpsdata) != 0)
         {
             fprintf(stderr,
