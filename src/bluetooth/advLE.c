@@ -33,6 +33,8 @@ pthread_t id, gps_thread;
 int device_descriptor = 0;
 
 static struct config_data config = {0};
+static bool kill_program = false;
+
 static struct fixsource_t source;
 static struct gps_data_t gpsdata;
 
@@ -43,8 +45,15 @@ struct gps_loop_args
     int exit_status;
 };
 
+float randomInRange(float min, float max)
+{
+    return min + ((float)rand() / RAND_MAX) * (max - min);
+}
+
 static void fill_example_data(struct ODID_UAS_Data *uasData)
 {
+    srand(time(0));
+
     uasData->BasicID[BASIC_ID_POS_ZERO].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
     uasData->BasicID[BASIC_ID_POS_ZERO].IDType = ODID_IDTYPE_SERIAL_NUMBER;
     char uas_id[] = "555555555555555555AB";
@@ -80,8 +89,8 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    uasData->System.OperatorLatitude = uasData->Location.Latitude - 23.206495527245156;
-    uasData->System.OperatorLongitude = uasData->Location.Longitude - 45.87633407660736;//-23.206495527245156, -45.87633407660736
+    uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
+    uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
     uasData->System.AreaCount = 1;
     uasData->System.AreaRadius = 0;
     uasData->System.AreaCeiling = 0;
@@ -99,12 +108,14 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
 static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
 {
+    srand(time(0));
+
     uasData->Location.Status = ODID_STATUS_AIRBORNE;
     uasData->Location.Direction = 361.f;
     uasData->Location.SpeedHorizontal = 0.0f;
     uasData->Location.SpeedVertical = 0.35f;
-    uasData->Location.Latitude = -23.20699;
-    uasData->Location.Longitude = -45.87736;
+    uasData->Location.Latitude = randomInRange(-23.20699 - 0.001, -23.20699 + 0.001);
+    uasData->Location.Longitude = randomInRange(-45.87736 - 0.001, -45.87736 + 0.001);
     uasData->Location.AltitudeBaro = 100;
     uasData->Location.AltitudeGeo = 110;
     uasData->Location.HeightType = ODID_HEIGHT_REF_OVER_GROUND;
@@ -383,6 +394,35 @@ static void hci_le_remove_advertising_set(int dd, uint8_t set)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
+// Para a transmissão
+static void stop_transmit()
+{
+    hci_le_set_advertising_disable(device_descriptor);
+}
+
+// Inicia bluetooth e parametros do advertising
+void init_bluetooth(struct config_data *config)
+{
+
+    uint8_t mac[6] = {0};
+    generate_random_mac_address(mac);
+
+    device_descriptor = open_hci_device();
+    hci_reset(device_descriptor);
+    // stoptransmit
+
+    // Parar transmissao LE
+    hci_le_set_advertising_disable(device_descriptor);
+    hci_le_read_local_supported_features(device_descriptor);
+    // Configura o LE advertise
+    hci_reset(device_descriptor);
+    hci_le_set_advertising_parameters(device_descriptor, 100);
+    hci_le_set_random_address(device_descriptor, mac);
+
+    // Inicia o advertise LE
+    hci_le_set_advertising_enable(device_descriptor);
+}
+
 void gps_loop(struct gps_loop_args *args)
 {
     struct gps_data_t *gpsdata = args->gpsdata;
@@ -433,32 +473,26 @@ void gps_loop(struct gps_loop_args *args)
      pthread_exit(&args->exit_status); */
 }
 
+static void sig_handler(int signo)
+{
+    if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
+    {
+        kill_program = true;
+    }
+}
+
 int main()
 {
-    // Registrar o manipulador de sinal SIGINT
-    device_descriptor = open_hci_device();
-
-    uint8_t mac[6] = {0};
-    generate_random_mac_address(mac);
+    init_bluetooth(&config);
+    signal(SIGINT, sig_handler);
+    signal(SIGKILL, sig_handler);
+    signal(SIGSTOP, sig_handler);
+    signal(SIGTERM, sig_handler);
 
     struct ODID_UAS_Data uasData;
     odid_initUasData(&uasData);
     fill_example_data(&uasData);
     fill_example_gps_data(&uasData);
-
-    hci_reset(device_descriptor);
-    // Parar transmissao LE
-    hci_le_set_advertising_disable(device_descriptor);
-
-    hci_le_read_local_supported_features(device_descriptor);
-
-    // Configura o LE advertise
-    hci_reset(device_descriptor);
-    hci_le_set_advertising_parameters(device_descriptor, 100);
-    hci_le_set_random_address(device_descriptor, mac);
-
-    // Inicia o advertise LE
-    hci_le_set_advertising_enable(device_descriptor);
 
     if (init_gps(&source, &gpsdata) != 0)
     {
@@ -475,8 +509,12 @@ int main()
 
     while (true)
     {
+        if (kill_program)
+            break;
         send_single_messages(&uasData, &config);
     }
+
+    stop_transmit();
 
     return 0;
 }

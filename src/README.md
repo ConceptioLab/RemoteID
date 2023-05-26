@@ -8,6 +8,8 @@ sudo ./advLE
 ```
 Lembre de ter bluez instalado em sua máquina.
 
+Teve erro de pthread? Adicione -pthread ao fim do seu comando de compilação.
+
 
 *beaconAdv.py* cria um AltBeacon Advertisement. Precisa de remodelar para o RemoteID.
 
