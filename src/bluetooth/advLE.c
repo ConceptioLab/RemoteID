@@ -485,6 +485,13 @@ void gps_loop(struct gps_loop_args *args)
     char gpsd_message[GPS_JSON_RESPONSE_MAX];
     int retries = 0; // cycles to wait before gpsd timeout
     int read_retries = 0;
+
+    if (gps_open("localhost", "2947", gpsdata) < 0) {
+        fprintf(stderr, "Falha ao abrir a conexão com o GPS.\n");
+    }
+
+    gps_stream(gpsdata, WATCH_ENABLE | WATCH_JSON, NULL);
+
     while (true)
     {
         if (kill_program)
@@ -556,13 +563,13 @@ int main(int argc, char *argv[])
     signal(SIGTERM, sig_handler);
     if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
     {
-        if (init_gps(&source, &gpsdata) != 0)
+        /* if (init_gps(&source, &gpsdata) != 0)
         {
             fprintf(stderr,
                     "No gpsd running or network error: %d, %s\n",
                     errno, gps_errstr(errno));
             cleanup(EXIT_FAILURE);
-        }
+        } */
 
         struct gps_loop_args args;
         args.gpsdata = &gpsdata;
