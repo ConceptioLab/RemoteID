@@ -30,6 +30,8 @@ pthread_t id, gps_thread;
 
 #define ODID_MESSAGE_SIZE 25
 
+int first = 1;
+
 int device_descriptor = 0;
 
 static struct config_data config = {0};
@@ -481,7 +483,7 @@ void *gps_thread_function(struct gps_loop_args *args)
 {
     struct gps_data_t *gpsdata = args->gpsdata;
     struct ODID_UAS_Data *uasData = args->uasData;
-    char gpsd_message[512];
+    char gpsd_message[GPS_JSON_RESPONSE_MAX];
 
     // Inicializa a conexão com o GPS
     if (gps_open("localhost", "2947", gpsdata) < 0)
@@ -505,21 +507,15 @@ void *gps_thread_function(struct gps_loop_args *args)
             if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
             {
                 fprintf(stderr, "Falha ao ler dados do GPS.\n");
-                break;
+                continue;
             }
-            printf("Socket selecionado corretamente.\n");
-
-            // Imprime os dados de latitude e longitude
-
-            process_gps_data(gpsdata, uasData);
+            process_gps_data(gpsdata, uasData, first);
+            first++;
         }
         else
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
         }
-
-        // Aguarda 1 segundo
-        sleep(1);
     }
 
     // Fecha a conexão com o GPS
@@ -527,57 +523,6 @@ void *gps_thread_function(struct gps_loop_args *args)
     gps_close(gpsdata);
 
     return NULL;
-}
-
-void gps_loop(struct gps_loop_args *args)
-{
-    struct gps_data_t *gpsdata = args->gpsdata;
-    struct ODID_UAS_Data *uasData = args->uasData;
-
-    char gpsd_message[512];
-    int retries = 0; // cycles to wait before gpsd timeout
-    int read_retries = 0;
-
-    while (true)
-    {
-        if (kill_program)
-            break;
-        if (gps_waiting(gpsdata, 500000))
-        {
-            retries = 0;
-            gpsd_message[0] = '\0';
-
-            if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
-            {
-                printf("Failed to read from socket, retrying...\n");
-                if (read_retries++ > MAX_GPS_READ_RETRIES)
-                {
-                    fprintf(stderr, "Max socket read retries reached, exiting...");
-                    kill_program = true;
-                    args->exit_status = 1;
-                    pthread_exit((void *)&args->exit_status);
-                }
-                continue;
-            }
-            printf("Socket selecionado corretamente.\n");
-            read_retries = 0;
-
-            process_gps_data(gpsdata, uasData);
-        }
-        else
-        {
-            printf("Socket not ready, retrying...\n");
-            if (retries++ > MAX_GPS_WAIT_RETRIES)
-            {
-                fprintf(stderr, "Max socket wait retries reached, exiting...");
-                kill_program = true;
-                args->exit_status = 1;
-                pthread_exit((void *)&args->exit_status);
-            }
-        }
-    }
-    args->exit_status = 0;
-    pthread_exit(&args->exit_status);
 }
 
 static void sig_handler(int signo)

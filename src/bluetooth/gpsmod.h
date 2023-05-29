@@ -12,6 +12,6 @@
 #define GPS_WAIT_TIME_MICROSECS 500000 // 1/2 second
 
 int init_gps(struct fixsource_t* source, struct gps_data_t* gpsdata);
-void process_gps_data(struct gps_data_t* gpsdata, struct ODID_UAS_Data *uasData);
+void process_gps_data(struct gps_data_t* gpsdata, struct ODID_UAS_Data *uasData, int first);
 
 #endif
