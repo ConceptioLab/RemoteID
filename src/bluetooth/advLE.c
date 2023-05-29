@@ -479,29 +479,29 @@ void init_bluetooth(struct config_data *config)
 
 void gps_loop(struct gps_loop_args *args)
 {
-    struct gps_data_t *gpsdata = args->gpsdata;
+    struct gps_data_t gpsdata;
     struct ODID_UAS_Data *uasData = args->uasData;
 
     char gpsd_message[GPS_JSON_RESPONSE_MAX];
     int retries = 0; // cycles to wait before gpsd timeout
     int read_retries = 0;
 
-    if (gps_open("localhost", "2947", gpsdata) < 0) {
+    if (gps_open("localhost", "2947", &gpsdata) < 0) {
         fprintf(stderr, "Falha ao abrir a conexão com o GPS.\n");
     }
 
-    gps_stream(gpsdata, WATCH_ENABLE | WATCH_JSON, NULL);
+    gps_stream(&gpsdata, WATCH_ENABLE | WATCH_JSON, NULL);
 
     while (true)
     {
         if (kill_program)
             break;
-        if (gps_waiting(gpsdata, GPS_WAIT_TIME_MICROSECS))
+        if (gps_waiting(&gpsdata, GPS_WAIT_TIME_MICROSECS))
         {
             retries = 0;
             gpsd_message[0] = '\0';
 
-            if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
+            if (gps_read(&gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
             {
                 printf("Failed to read from socket, retrying...\n");
                 if (read_retries++ > MAX_GPS_READ_RETRIES)
@@ -515,7 +515,7 @@ void gps_loop(struct gps_loop_args *args)
             }
             read_retries = 0;
 
-            process_gps_data(gpsdata, uasData);
+            process_gps_data(&gpsdata, uasData);
         }
         else
         {
