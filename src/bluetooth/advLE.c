@@ -501,7 +501,7 @@ void *gps_thread_function(struct gps_loop_args *args)
         if (kill_program)
             break;
         // Aguarda os dados do GPS
-        if (gps_waiting(gpsdata, 500000))
+        if (gps_waiting(gpsdata, 5000000))
         {
             // Lê os dados do GPS
             if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
@@ -516,7 +516,6 @@ void *gps_thread_function(struct gps_loop_args *args)
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
         }
-        usleep(500);
     }
 
     // Fecha a conexão com o GPS
