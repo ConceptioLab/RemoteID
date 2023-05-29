@@ -32,6 +32,15 @@ void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData,
     {
         uasData->Location.Latitude = gpsdata->fix.latitude;
         uasData->Location.Longitude = gpsdata->fix.longitude;
+        if (first == 1)
+        {
+            uasData->System.OperatorLatitude = gpsdata->fix.latitude;
+            uasData->System.OperatorLongitude = gpsdata->fix.longitude;
+        }
+    }
+
+    if (gpsdata->fix.mode >= MODE_3D)
+    {
         if (isfinite(gpsdata->fix.speed))
         {
             uasData->Location.SpeedHorizontal = gpsdata->fix.speed;
@@ -48,15 +57,6 @@ void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData,
         {
             uasData->Location.Direction = gpsdata->fix.track;
         }
-        if (first == 1)
-        {
-            uasData->System.OperatorLatitude = gpsdata->fix.latitude;
-            uasData->System.OperatorLongitude = gpsdata->fix.longitude;
-        }
-    }
-
-    if (gpsdata->fix.mode >= MODE_3D)
-    {
         if (isfinite(gpsdata->fix.altMSL))
         {
             uasData->Location.AltitudeGeo = gpsdata->fix.altMSL;
