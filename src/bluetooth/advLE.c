@@ -509,6 +509,7 @@ void *gps_thread_function(struct gps_loop_args *args)
                 fprintf(stderr, "Falha ao ler dados do GPS.\n");
                 continue;
             }
+            usleep(800);
             process_gps_data(gpsdata, uasData, first);
             first++;
         }
@@ -516,7 +517,6 @@ void *gps_thread_function(struct gps_loop_args *args)
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
         }
-        usleep(800);
     }
 
     // Fecha a conexão com o GPS
