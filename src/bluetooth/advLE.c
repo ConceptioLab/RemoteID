@@ -516,7 +516,7 @@ void *gps_thread_function(struct gps_loop_args *args)
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
         }
-        sleep(1);
+        usleep(500);
     }
 
     // Fecha a conexão com o GPS
