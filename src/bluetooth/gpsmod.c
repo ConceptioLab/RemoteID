@@ -5,19 +5,19 @@
 int init_gps(struct fixsource_t* source, struct gps_data_t* gpsdata) {
     unsigned int flags = WATCH_ENABLE;
 
-    //gpsd_source_spec(NULL, source);
+    gpsd_source_spec(NULL, source);
 
-    if (gps_open(source->server, source->port, gpsdata) < 0) {
+    if (gps_open(source->server, source->port, &gpsdata) < 0) {
         fprintf(stderr, "Falha ao abrir a conexão com o GPS.\n");
         return 1;
     }else
         printf("Porta aberta");
 
-/*     if (NULL != source->device) {
+     if (NULL != source->device) {
         flags |= WATCH_DEVICE;
-    } */
+    } 
     
-    gps_stream(gpsdata, flags | WATCH_JSON, NULL);
+    gps_stream(&gpsdata, flags, NULL);
 
     return 0;
 }
