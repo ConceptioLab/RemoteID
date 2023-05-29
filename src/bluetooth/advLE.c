@@ -477,27 +477,77 @@ void init_bluetooth(struct config_data *config)
     hci_le_set_advertising_enable(device_descriptor);
 }
 
+void *gps_thread_function(struct gps_loop_args *args)
+{
+    struct gps_data_t *gpsdata = args->gpsdata;
+    struct ODID_UAS_Data *uasData = args->uasData;
+    char gpsd_message[512];
+
+    // Inicializa a conexão com o GPS
+    if (gps_open("localhost", "2947", gpsdata) < 0)
+    {
+        fprintf(stderr, "Falha ao abrir a conexão com o GPS.\n");
+        return NULL;
+    }
+
+    // Configura o modo de operação do GPS
+    gps_stream(gpsdata, WATCH_ENABLE | WATCH_JSON, NULL);
+
+    // Loop principal
+    while (true)
+    {
+        if (kill_program)
+            break;
+        // Aguarda os dados do GPS
+        if (gps_waiting(gpsdata, 500000))
+        {
+            // Lê os dados do GPS
+            if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
+            {
+                fprintf(stderr, "Falha ao ler dados do GPS.\n");
+                break;
+            }
+            printf("Socket selecionado corretamente.\n");
+
+            // Imprime os dados de latitude e longitude
+
+            process_gps_data(gpsdata, uasData);
+        }
+        else
+        {
+            fprintf(stderr, "Socket não está pronto, aguardando...\n");
+        }
+
+        // Aguarda 1 segundo
+        sleep(1);
+    }
+
+    // Fecha a conexão com o GPS
+    gps_stream(gpsdata, WATCH_DISABLE, NULL);
+    gps_close(gpsdata);
+
+    return NULL;
+}
+
 void gps_loop(struct gps_loop_args *args)
 {
-    struct gps_data_t gpsdata;
+    struct gps_data_t *gpsdata = args->gpsdata;
     struct ODID_UAS_Data *uasData = args->uasData;
 
-    char gpsd_message[GPS_JSON_RESPONSE_MAX];
+    char gpsd_message[512];
     int retries = 0; // cycles to wait before gpsd timeout
     int read_retries = 0;
-
-    gps_stream(&gpsdata, WATCH_ENABLE | WATCH_JSON, NULL);
 
     while (true)
     {
         if (kill_program)
             break;
-        if (gps_waiting(&gpsdata, GPS_WAIT_TIME_MICROSECS))
+        if (gps_waiting(gpsdata, 500000))
         {
             retries = 0;
             gpsd_message[0] = '\0';
 
-            if (gps_read(&gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
+            if (gps_read(gpsdata, gpsd_message, sizeof(gpsd_message)) == -1)
             {
                 printf("Failed to read from socket, retrying...\n");
                 if (read_retries++ > MAX_GPS_READ_RETRIES)
@@ -512,7 +562,7 @@ void gps_loop(struct gps_loop_args *args)
             printf("Socket selecionado corretamente.\n");
             read_retries = 0;
 
-            process_gps_data(&gpsdata, uasData);
+            process_gps_data(gpsdata, uasData);
         }
         else
         {
@@ -571,7 +621,14 @@ int main(int argc, char *argv[])
         struct gps_loop_args args;
         args.gpsdata = &gpsdata;
         args.uasData = &uasData;
-        pthread_create(&gps_thread, NULL, (void *)&gps_loop, &args);
+        int ret = pthread_create(&gps_thread, NULL, (void *)&gps_thread_function, &args);
+        if (ret != 0)
+        {
+            fprintf(stderr, "Falha ao criar a pthread.\n");
+            return 1;
+        }
+
+        // pthread_create(&gps_thread, NULL, (void *)&gps_loop, &args);
         while (true)
         {
             if (kill_program)
