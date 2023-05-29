@@ -539,6 +539,9 @@ int main(int argc, char *argv[])
 {
     parse_command_line(argc, argv, &config);
 
+    source.server = "localhost";
+    source.port = "2947";
+
     struct ODID_UAS_Data uasData;
     odid_initUasData(&uasData);
     fill_example_data(&uasData);
