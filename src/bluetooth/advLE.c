@@ -463,7 +463,7 @@ void init_bluetooth(struct config_data *config)
     hci_le_set_advertising_enable(device_descriptor);
 }
 
-// Limpa adaptador bluetooth e gps
+// Limpa e fecha adaptador bluetooth e gps
 static void cleanup(int exit_code)
 {
     hci_reset(device_descriptor);
@@ -597,7 +597,6 @@ int main(int argc, char *argv[])
             send_single_messages(&uasData, &config);
         }
     }
-    printf("SAi!\n");
 
     cleanup(EXIT_SUCCESS);
 }
