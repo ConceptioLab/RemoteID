@@ -40,6 +40,7 @@ void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData,
             {
                 uasData->System.OperatorLatitude = gpsdata->fix.latitude;
                 uasData->System.OperatorLongitude = gpsdata->fix.longitude;
+                
             }
         }
     }

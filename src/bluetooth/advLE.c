@@ -129,8 +129,8 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
-    uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
+    /* uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
+    uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736 */
     uasData->System.AreaCount = 1;
     uasData->System.AreaRadius = 0;
     uasData->System.AreaCeiling = 0;
@@ -509,9 +509,11 @@ void *gps_thread_function(struct gps_loop_args *args)
                 fprintf(stderr, "Falha ao ler dados do GPS.\n");
                 continue;
             }
-            usleep(800);
             process_gps_data(gpsdata, uasData, first);
-            first++;
+            if (uasData->System.OperatorLatitude != 0)
+                first++;
+
+            usleep(800);
         }
         else
         {
