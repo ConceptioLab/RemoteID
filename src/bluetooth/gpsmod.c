@@ -29,6 +29,19 @@ int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
 void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData, int first)
 {
     printf("Fix Mode: %d\n", gpsdata->fix.mode);
+        if ((gpsdata->fix.latitude > 0.00001 && gpsdata->fix.longitude > 0.00001) ||
+            (gpsdata->fix.latitude < -0.00001 && gpsdata->fix.longitude < 0.00001))
+        {
+
+            uasData->Location.Latitude = gpsdata->fix.latitude;
+            uasData->Location.Longitude = gpsdata->fix.longitude;
+            if (first == 1)
+            {
+                uasData->System.OperatorLatitude = gpsdata->fix.latitude;
+                uasData->System.OperatorLongitude = gpsdata->fix.longitude;
+                
+            }
+        }
     if (gpsdata->fix.mode >= MODE_2D)
     {
         if ((gpsdata->fix.latitude > 0.00001 && gpsdata->fix.longitude > 0.00001) ||
