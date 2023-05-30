@@ -169,22 +169,6 @@ static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
     uasData->Location.TimeStamp = 360.52f;
 }
 
-// Limpa adaptador bluetooth e gps
-static void cleanup(int exit_code)
-{
-    hci_close_dev(device_descriptor);
-    if (config.use_gps)
-    {
-        int *ptr;
-        pthread_join(gps_thread, (void **)&ptr);
-        printf("Return value from gps_loop: %d\n", *ptr);
-
-        gps_close(&gpsdata);
-    }
-
-    exit(exit_code);
-}
-
 // Ativa o bluetooth para envio.
 static int open_hci_device()
 {
@@ -479,6 +463,25 @@ void init_bluetooth(struct config_data *config)
     hci_le_set_advertising_enable(device_descriptor);
 }
 
+// Limpa adaptador bluetooth e gps
+static void cleanup(int exit_code)
+{
+    hci_reset(device_descriptor);
+    hci_le_set_advertising_disable(device_descriptor);
+    hci_close_dev(device_descriptor);
+
+    if (config.use_gps)
+    {
+        int *ptr;
+        pthread_join(gps_thread, (void **)&ptr);
+        printf("Return value from gps_loop: %d\n", *ptr);
+
+        gps_close(&gpsdata);
+    }
+
+    exit(exit_code);
+}
+
 void *gps_thread_function(struct gps_loop_args *args)
 {
     struct gps_data_t *gpsdata = args->gpsdata;
@@ -527,8 +530,6 @@ void *gps_thread_function(struct gps_loop_args *args)
 
     args->exit_status = 0;
     pthread_exit(&args->exit_status);
-
-    return NULL;
 }
 
 static void sig_handler(int signo)
@@ -596,6 +597,7 @@ int main(int argc, char *argv[])
             send_single_messages(&uasData, &config);
         }
     }
+    printf("SAi!\n");
 
     cleanup(EXIT_SUCCESS);
 }

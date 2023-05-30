@@ -33,5 +33,5 @@ g para ativar o gps.
 Exemplo: 
 
 ```bash
-sudo ./advLE l
+sudo ./advLE l g
 ```
