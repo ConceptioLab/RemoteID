@@ -525,6 +525,9 @@ void *gps_thread_function(struct gps_loop_args *args)
     gps_stream(gpsdata, WATCH_DISABLE, NULL);
     gps_close(gpsdata);
 
+    args->exit_status = 0;
+    pthread_exit(&args->exit_status);
+
     return NULL;
 }
 
