@@ -1,90 +1,74 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <errno.h>
 #include <sys/socket.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-static void hci_le_reset_advertising_scan(int dd)
-{
-    uint8_t ogf = OGF_HOST_CTL;
-    uint16_t ocf = OCF_RESET;
-    uint8_t buf[] = {};
+#define BUFFER_SIZE 1024
 
-    if (hci_send_cmd(dd, ogf, ocf, sizeof(buf), buf) < 0)
-    {
-        perror("Failed to send HCI command");
-        exit(EXIT_FAILURE);
-    }
-}
-
-int main()
-{
-    int dev_id = hci_get_route(NULL);
-    int dd = hci_open_dev(dev_id);
-
-    if (dd < 0)
-    {
-        perror("Erro ao abrir o socket HCI");
-        exit(EXIT_FAILURE);
-    }
-    hci_le_reset_advertising_scan(dd);
-
-    struct hci_filter old_filter;
-    socklen_t old_filter_len = sizeof(old_filter);
-    if (getsockopt(dd, SOL_HCI, HCI_FILTER, &old_filter, &old_filter_len) < 0)
-    {
-        perror("Failed to get socket options");
-        exit(EXIT_FAILURE);
+int main() {
+    // Abrir o adaptador Bluetooth
+    int adapter_id = hci_get_route(NULL);
+    int socket = hci_open_dev(adapter_id);
+    if (socket < 0) {
+        perror("Erro ao abrir o adaptador Bluetooth");
+        exit(1);
     }
 
-    struct hci_filter new_filter;
-    hci_filter_clear(&new_filter);
-    hci_filter_set_ptype(HCI_EVENT_PKT, &new_filter);
-    hci_filter_set_event(EVT_LE_META_EVENT, &new_filter);
-    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &new_filter, sizeof(new_filter)) < 0)
-    {
-        perror("Failed to set socket options");
-        exit(EXIT_FAILURE);
+    // Configurar o filtro para capturar todos os pacotes
+    struct hci_filter filter;
+    hci_filter_clear(&filter);
+    hci_filter_set_ptype(HCI_EVENT_PKT, &filter);
+    hci_filter_set_event(EVT_LE_META_EVENT, &filter);
+    if (setsockopt(socket, SOL_HCI, HCI_FILTER, &filter, sizeof(filter)) < 0) {
+        perror("Erro ao configurar o filtro");
+        close(socket);
+        exit(1);
     }
 
-    hci_le_set_scan_parameters(dd, 0x00, htobs(0x0010), htobs(0x0010), 0x00, 0x00, 1000);
-    le_set_scan_enable(dd, 0x01, 0x00, 1000);
-
-    printf("Start discovery initiated.\n");
-
-    // Agora você pode esperar pelos eventos de descoberta e tratá-los aqui.
-    while (1)
-    {
-        unsigned char buffer[HCI_MAX_EVENT_SIZE];
-        ssize_t len = read(dd, buffer, sizeof(buffer));
-
-        if (len < 0)
-        {
-            perror("Failed to read HCI event");
-            break;
+    // Iniciar a captura de pacotes
+    unsigned char buffer[BUFFER_SIZE];
+    while (1) {
+        int length = read(socket, buffer, sizeof(buffer));
+        if (length < 0) {
+            perror("Erro ao ler o pacote");
+            close(socket);
+            exit(1);
         }
-        
 
-        evt_le_meta_event *meta_event = (evt_le_meta_event *)(buffer + HCI_EVENT_HDR_SIZE + 1);
+        // Verificar se é um pacote LE Meta Event
+        if (buffer[0] == HCI_EVENT_PKT && buffer[1] == EVT_LE_META_EVENT) {
+            int subevent_code = buffer[3];
+            if (subevent_code == EVT_LE_ADVERTISING_REPORT) {
+                // Obter os dados do pacote de publicidade
+                int num_reports = buffer[4];
+                int offset = 0;
+                for (int i = 0; i < num_reports; i++) {
+                    offset = 9 + (i * 13);
+                    uint8_t addr_type = buffer[offset];
+                    bdaddr_t addr;
+                    memcpy(&addr, &buffer[offset + 1], sizeof(bdaddr_t));
+                    int8_t rssi = buffer[offset + 7];
+                    int data_length = buffer[offset + 8];
+                    uint8_t *data = &buffer[offset + 9];
 
-        le_advertising_info *info = (le_advertising_info *)(meta_event->data + 1);
-        char addr[18];
-        ba2str(&(info->bdaddr), addr);
-        printf("Dispositivo encontrado: %s\n", addr);
+                    // Exibir informações do dispositivo
+                    char addr_str[18];
+                    ba2str(&addr, addr_str);
+                    printf("Dispositivo: %s, RSSI: %d dBm\n", addr_str, rssi);
+                    printf("Dados do pacote: ");
+                    for (int j = 0; j < data_length; j++) {
+                        printf("%02x ", data[j]);
+                    }
+                    printf("\n\n");
+                }
+            }
+        }
     }
 
-    hci_le_set_scan_enable(dd, 0x00, 0x00, 10000); // Desabilitar a varredura após a descoberta
-    printf("Scan finalizado\n");
-
-    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &old_filter, sizeof(old_filter)) < 0)
-    {
-        perror("Failed to restore socket options");
-    }
-
-    hci_close_dev(dd);
-
+    // Fechar o soquete e liberar recursos
+    close(socket);
     return 0;
 }
