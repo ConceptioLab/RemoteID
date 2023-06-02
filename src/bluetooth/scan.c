@@ -130,7 +130,7 @@ void error_check_and_exit(struct hci_state current_hci_state)
 {
 	if (current_hci_state.has_error)
 	{
-		printw("ERROR: %s\n", current_hci_state.error_message);
+		printf("ERROR: %s\n", current_hci_state.error_message);
 		endwin();
 		exit(1);
 	}
@@ -138,7 +138,7 @@ void error_check_and_exit(struct hci_state current_hci_state)
 
 void process_data(uint8_t *data, size_t data_len, le_advertising_info *info)
 {
-	printw("Test: %p and %d\n", data, data_len);
+	printf("Test: %p and %d\n", data, data_len);
 	if (data[0] == EIR_NAME_SHORT || data[0] == EIR_NAME_COMPLETE)
 	{
 		size_t name_len = data_len - 1;
@@ -149,34 +149,34 @@ void process_data(uint8_t *data, size_t data_len, le_advertising_info *info)
 		char addr[18];
 		ba2str(&info->bdaddr, addr);
 
-		printw("addr=%s name=%s\n", addr, name);
+		printf("addr=%s name=%s\n", addr, name);
 
 		free(name);
 	}
 	else if (data[0] == EIR_FLAGS)
 	{
-		printw("Flag type: len=%d\n", data_len);
+		printf("Flag type: len=%d\n", data_len);
 		int i;
 		for (i = 1; i < data_len; i++)
 		{
-			printw("\tFlag data: 0x%0X\n", data[i]);
+			printf("\tFlag data: 0x%0X\n", data[i]);
 		}
 	}
 	else if (data[0] == EIR_MANUFACTURE_SPECIFIC)
 	{
-		printw("Manufacture specific type: len=%d\n", data_len);
+		printf("Manufacture specific type: len=%d\n", data_len);
 
 		// TODO int company_id = data[current_index + 2]
 
 		int i;
 		for (i = 1; i < data_len; i++)
 		{
-			printw("\tData: 0x%0X\n", data[i]);
+			printf("\tData: 0x%0X\n", data[i]);
 		}
 	}
 	else
 	{
-		printw("Unknown type: type=%X\n", data[0]);
+		printf("Unknown type: type=%X\n", data[0]);
 	}
 }
 
@@ -237,7 +237,7 @@ void main(void)
 
 	error_check_and_exit(current_hci_state);
 
-	printw("Scanning...\n");
+	printf("Scanning...\n");
 
 	int done = FALSE;
 	int error = FALSE;
@@ -282,8 +282,8 @@ void main(void)
 
 			le_advertising_info *info = (le_advertising_info *)(meta->data + 1);
 
-			printw("Event: %d\n", info->evt_type);
-			printw("Length: %d\n", info->length);
+			printf("Event: %d\n", info->evt_type);
+			printf("Length: %d\n", info->length);
 
 			if (info->length == 0)
 			{
@@ -299,7 +299,7 @@ void main(void)
 
 				if (data_len + 1 > info->length)
 				{
-					printw("EIR data length is longer than EIR packet length. %d + 1 > %d", data_len, info->length);
+					printf("EIR data length is longer than EIR packet length. %d + 1 > %d", data_len, info->length);
 					data_error = 1;
 				}
 				else
@@ -314,7 +314,7 @@ void main(void)
 
 	if (error)
 	{
-		printw("Error scanning.");
+		printf("Error scanning.");
 	}
 
 	stop_hci_scan(current_hci_state);
