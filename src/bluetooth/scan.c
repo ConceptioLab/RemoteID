@@ -277,8 +277,7 @@ void main(void)
 
 			if (meta->subevent != EVT_LE_ADVERTISING_REPORT)
 			{
-				printf("1");
-				continue;
+				//continue;
 			}
 
 			le_advertising_info *info = (le_advertising_info *)(meta->data + 1);
@@ -296,8 +295,6 @@ void main(void)
 
 			while (!data_error && current_index < info->length)
 			{
-				printf("read while");
-
 				size_t data_len = info->data[current_index];
 
 				if (data_len + 1 > info->length)
