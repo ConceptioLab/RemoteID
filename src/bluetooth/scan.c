@@ -1,217 +1,330 @@
-// Copyright (c) 2021 David G. Young
-// Copyright (c) 2015 Damian Kołakowski. All rights reserved.
-
-// cc scanner.c -lbluetooth -o scanner
-
 #include <stdlib.h>
 #include <errno.h>
+#include <curses.h>
 #include <unistd.h>
-#include <signal.h>
 #include <sys/ioctl.h>
-#include <sys/socket.h>
+
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
-#include <time.h>
 
-int device;
+#define HCI_STATE_NONE 0
+#define HCI_STATE_OPEN 2
+#define HCI_STATE_SCANNING 3
+#define HCI_STATE_FILTERING 4
 
-struct hci_request ble_hci_request(uint16_t ocf, int clen, void * status, void * cparam)
+struct hci_state
 {
-	struct hci_request rq;
-	memset(&rq, 0, sizeof(rq));
-	rq.ogf = OGF_LE_CTL;
-	rq.ocf = ocf;
-	rq.cparam = cparam;
-	rq.clen = clen;
-	rq.rparam = status;
-	rq.rlen = 1;
-	return rq;
+	int device_id;
+	int device_handle;
+	struct hci_filter original_filter;
+	int state;
+	int has_error;
+	char error_message[1024];
+} hci_state;
+
+#define EIR_FLAGS 0X01
+#define EIR_NAME_SHORT 0x08
+#define EIR_NAME_COMPLETE 0x09
+#define EIR_MANUFACTURE_SPECIFIC 0xFF
+
+struct hci_state open_default_hci_device()
+{
+	struct hci_state current_hci_state = {0};
+
+	current_hci_state.device_id = hci_get_route(NULL);
+
+	if ((current_hci_state.device_handle = hci_open_dev(current_hci_state.device_id)) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Could not open device: %s", strerror(errno));
+		return current_hci_state;
+	}
+
+	// Set fd non-blocking
+	int on = 1;
+	if (ioctl(current_hci_state.device_handle, FIONBIO, (char *)&on) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Could set device to non-blocking: %s", strerror(errno));
+		return current_hci_state;
+	}
+
+	current_hci_state.state = HCI_STATE_OPEN;
+
+	hci_send_cmd(current_hci_state.device_handle, OGF_HOST_CTL, OCF_RESET, 0, 0);
+
+	return current_hci_state;
 }
 
-// cleanup and exit the program with exit code 0
-void exit_clean()
+void start_hci_scan(struct hci_state current_hci_state)
 {
-	int ret, status;
+	if (hci_le_set_scan_parameters(current_hci_state.device_handle, 0x01, htobs(0x0010), htobs(0x0010), 0x00, 0x00, 1000) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Failed to set scan parameters: %s", strerror(errno));
+		return;
+	}
 
-	// Disable scanning.
+	if (hci_le_set_scan_enable(current_hci_state.device_handle, 0x01, 1, 1000) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Failed to enable scan: %s", strerror(errno));
+		return;
+	}
 
-	le_set_scan_enable_cp scan_cp;
-	memset(&scan_cp, 0, sizeof(scan_cp));
-	scan_cp.enable = 0x00;	// Disable flag.
+	current_hci_state.state = HCI_STATE_SCANNING;
 
-	struct hci_request disable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
-	ret = hci_send_req(device, &disable_adv_rq, 1000);
-	if ( ret < 0 )
-		perror("Failed to disable scan.");
+	// Save the current HCI filter
+	socklen_t olen = sizeof(current_hci_state.original_filter);
+	if (getsockopt(current_hci_state.device_handle, SOL_HCI, HCI_FILTER, &current_hci_state.original_filter, &olen) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Could not get socket options: %s", strerror(errno));
+		return;
+	}
 
-	hci_close_dev(device);
-	exit( 0 );
+	// Create and set the new filter
+	struct hci_filter new_filter;
+
+	hci_filter_clear(&new_filter);
+	hci_filter_set_ptype(HCI_EVENT_PKT, &new_filter);
+	hci_filter_set_event(EVT_LE_META_EVENT, &new_filter);
+
+	if (setsockopt(current_hci_state.device_handle, SOL_HCI, HCI_FILTER, &new_filter, sizeof(new_filter)) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Could not set socket options: %s", strerror(errno));
+		return;
+	}
+
+	current_hci_state.state = HCI_STATE_FILTERING;
 }
 
-// handles timeout
-void signal_handler( int s )
+void stop_hci_scan(struct hci_state current_hci_state)
 {
-	//printf( "received SIGALRM\n" );
-	exit_clean();
+	if (current_hci_state.state == HCI_STATE_FILTERING)
+	{
+		current_hci_state.state = HCI_STATE_SCANNING;
+		setsockopt(current_hci_state.device_handle, SOL_HCI, HCI_FILTER, &current_hci_state.original_filter, sizeof(current_hci_state.original_filter));
+	}
+
+	if (hci_le_set_scan_enable(current_hci_state.device_handle, 0x00, 1, 1000) < 0)
+	{
+		current_hci_state.has_error = TRUE;
+		snprintf(current_hci_state.error_message, sizeof(current_hci_state.error_message), "Disable scan failed: %s", strerror(errno));
+	}
+
+	current_hci_state.state = HCI_STATE_OPEN;
 }
 
-int main()
+void close_hci_device(struct hci_state current_hci_state)
 {
-	int ret, status;
+	if (current_hci_state.state == HCI_STATE_OPEN)
+	{
+		hci_close_dev(current_hci_state.device_handle);
+	}
+}
 
-	// Get HCI device.
+void error_check_and_exit(struct hci_state current_hci_state)
+{
+	if (current_hci_state.has_error)
+	{
+		printw("ERROR: %s\n", current_hci_state.error_message);
+		endwin();
+		exit(1);
+	}
+}
 
-	device = hci_open_dev(1);
-	if ( device < 0 ) {
-		device = hci_open_dev(0);
-		if (device >= 0) {
-   		printf("Using hci0\n");
+void process_data(uint8_t *data, size_t data_len, le_advertising_info *info)
+{
+	printw("Test: %p and %d\n", data, data_len);
+	if (data[0] == EIR_NAME_SHORT || data[0] == EIR_NAME_COMPLETE)
+	{
+		size_t name_len = data_len - 1;
+		char *name = malloc(name_len + 1);
+		memset(name, 0, name_len + 1);
+		memcpy(name, &data[2], name_len);
+
+		char addr[18];
+		ba2str(&info->bdaddr, addr);
+
+		printw("addr=%s name=%s\n", addr, name);
+
+		free(name);
+	}
+	else if (data[0] == EIR_FLAGS)
+	{
+		printw("Flag type: len=%d\n", data_len);
+		int i;
+		for (i = 1; i < data_len; i++)
+		{
+			printw("\tFlag data: 0x%0X\n", data[i]);
 		}
 	}
-	else {
-   		printf("Using hci1\n");
-	}
-
-	if ( device < 0 ) {
-		perror("Failed to open HCI device.");
-		return 0;
-	}
-
-	// Set BLE scan parameters.
-
-	le_set_scan_parameters_cp scan_params_cp;
-	memset(&scan_params_cp, 0, sizeof(scan_params_cp));
-	scan_params_cp.type 			= 0x00;
-	scan_params_cp.interval 		= htobs(0x0010);
-	scan_params_cp.window 			= htobs(0x0010);
-	scan_params_cp.own_bdaddr_type 	= 0x00; // Public Device Address (default).
-	scan_params_cp.filter 			= 0x00; // Accept all.
-
-	struct hci_request scan_params_rq = ble_hci_request(OCF_LE_SET_SCAN_PARAMETERS, LE_SET_SCAN_PARAMETERS_CP_SIZE, &status, &scan_params_cp);
-
-	ret = hci_send_req(device, &scan_params_rq, 1000);
-	if ( ret < 0 ) {
-		hci_close_dev(device);
-		perror("Failed to set scan parameters data.");
-		return 0;
-	}
-
-	// Set BLE events report mask.
-
-	le_set_event_mask_cp event_mask_cp;
-	memset(&event_mask_cp, 0, sizeof(le_set_event_mask_cp));
-	int i = 0;
-	for ( i = 0 ; i < 8 ; i++ ) event_mask_cp.mask[i] = 0xFF;
-
-	struct hci_request set_mask_rq = ble_hci_request(OCF_LE_SET_EVENT_MASK, LE_SET_EVENT_MASK_CP_SIZE, &status, &event_mask_cp);
-	ret = hci_send_req(device, &set_mask_rq, 1000);
-	if ( ret < 0 ) {
-		hci_close_dev(device);
-		perror("Failed to set event mask.");
-		return 0;
-	}
-
-	// Enable scanning.
-
-	le_set_scan_enable_cp scan_cp;
-	memset(&scan_cp, 0, sizeof(scan_cp));
-	scan_cp.enable 		= 0x01;	// Enable flag.
-	scan_cp.filter_dup 	= 0x00; // Filtering disabled.
-
-	struct hci_request enable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
-
-	ret = hci_send_req(device, &enable_adv_rq, 1000);
-	if ( ret < 0 ) {
-		hci_close_dev(device);
-		perror("Failed to enable scan.");
-		return 0;
-	}
-
-	// Get Results.
-
-	struct hci_filter nf;
-	hci_filter_clear(&nf);
-	hci_filter_set_ptype(HCI_EVENT_PKT, &nf);
-	hci_filter_set_event(EVT_LE_META_EVENT, &nf);
-	if ( setsockopt(device, SOL_HCI, HCI_FILTER, &nf, sizeof(nf)) < 0 ) {
-		hci_close_dev(device);
-		perror("Could not set socket options\n");
-		return 0;
-	}
-
-
-	uint8_t buf[HCI_MAX_EVENT_SIZE];
-	evt_le_meta_event * meta_event;
-	le_advertising_info * info;
-	int len;
-	int count = 0;
-
-	const int timeout = 10;
-	const int reset_timeout = 1; // wether to reset the timer on a received scan event (continuous scanning)
-	const int max_count = 1000;
-
-	// Install a signal handler so that we can set the exit code and clean up
-	if ( signal( SIGALRM, signal_handler ) == SIG_ERR )
+	else if (data[0] == EIR_MANUFACTURE_SPECIFIC)
 	{
-		hci_close_dev(device);
-		perror( "Could not install signal handler\n" );
-		return 0;
-	}
+		printw("Manufacture specific type: len=%d\n", data_len);
 
-	if ( timeout > 0 )
-		alarm( timeout ); // set the alarm timer, when time is up the program will be terminated
+		// TODO int company_id = data[current_index + 2]
 
-	sigset_t sigalrm_set; // apparently the signal must be unblocked in some cases
-	sigemptyset ( &sigalrm_set );
-	sigaddset ( &sigalrm_set, SIGALRM );
-	if ( sigprocmask( SIG_UNBLOCK, &sigalrm_set, NULL ) != 0 )
-	{
-		hci_close_dev(device);
-		perror( "Could not unblock alarm signal" );
-		return 0;
-	}
-
-	// Keep scanning until the timeout is triggered or we have seen lots of advertisements.  Then exit.
-	// We exit in this case because the scan may have failed or stopped. Higher level code can restart
-	while ( count < max_count || max_count <= 0 )
-	{
-		len = read(device, buf, sizeof(buf));
-		if ( len >= HCI_EVENT_HDR_SIZE )
+		int i;
+		for (i = 1; i < data_len; i++)
 		{
-			meta_event = (evt_le_meta_event*)(buf+HCI_EVENT_HDR_SIZE+1);
-			if ( meta_event->subevent == EVT_LE_ADVERTISING_REPORT )
-			{
-				count++;
-				if ( reset_timeout != 0 && timeout > 0 ) // reset/restart the alarm timer
-					alarm( timeout );
+			printw("\tData: 0x%0X\n", data[i]);
+		}
+	}
+	else
+	{
+		printw("Unknown type: type=%X\n", data[0]);
+	}
+}
 
-				// print results
-				uint8_t reports_count = meta_event->data[0];
-				void * offset = meta_event->data + 1;
-				while ( reports_count-- )
+int get_rssi(bdaddr_t *bdaddr, struct hci_state current_hci_state)
+{
+	struct hci_dev_info di;
+	if (hci_devinfo(current_hci_state.device_id, &di) < 0)
+	{
+		perror("Can't get device info");
+		return (-1);
+	}
+
+	uint16_t handle;
+	// int hci_create_connection(int dd, const bdaddr_t *bdaddr, uint16_t ptype, uint16_t clkoffset, uint8_t rswitch, uint16_t *handle, int to);
+	// HCI_DM1 | HCI_DM3 | HCI_DM5 | HCI_DH1 | HCI_DH3 | HCI_DH5
+	if (hci_create_connection(current_hci_state.device_handle, bdaddr, htobs(di.pkt_type & ACL_PTYPE_MASK), 0, 0x01, &handle, 25000) < 0)
+	{
+		perror("Can't create connection");
+		// TODO close(dd);
+		return (-1);
+	}
+	sleep(1);
+
+	struct hci_conn_info_req *cr = malloc(sizeof(*cr) + sizeof(struct hci_conn_info));
+	bacpy(&cr->bdaddr, bdaddr);
+	cr->type = ACL_LINK;
+	if (ioctl(current_hci_state.device_handle, HCIGETCONNINFO, (unsigned long)cr) < 0)
+	{
+		perror("Get connection info failed");
+		return (-1);
+	}
+
+	int8_t rssi;
+	if (hci_read_rssi(current_hci_state.device_handle, htobs(cr->conn_info->handle), &rssi, 1000) < 0)
+	{
+		perror("Read RSSI failed");
+		return (-1);
+	}
+
+	printf("RSSI return value: %d\n", rssi);
+
+	free(cr);
+
+	usleep(10000);
+	hci_disconnect(current_hci_state.device_handle, handle, HCI_OE_USER_ENDED_CONNECTION, 10000);
+}
+
+void main(void)
+{
+	initscr();
+	timeout(0);
+
+	struct hci_state current_hci_state = open_default_hci_device();
+
+	error_check_and_exit(current_hci_state);
+
+	start_hci_scan(current_hci_state);
+
+	error_check_and_exit(current_hci_state);
+
+	printw("Scanning...\n");
+
+	int done = FALSE;
+	int error = FALSE;
+	while (!done && !error)
+	{
+		int len = 0;
+		unsigned char buf[HCI_MAX_EVENT_SIZE];
+		while ((len = read(current_hci_state.device_handle, buf, sizeof(buf))) < 0)
+		{
+
+			if (errno == EINTR)
+			{
+				done = TRUE;
+				break;
+			}
+
+			if (errno == EAGAIN || errno == EINTR)
+			{
+				if (getch() == 'q')
 				{
-					info = (le_advertising_info *)offset;
-					char addr[18];
-					ba2str( &(info->bdaddr), addr);
-					printf("%s %d", addr, (int8_t)info->data[info->length]);
-					for (int i = 0; i < info->length; i++)
-						printf(" %02X", (unsigned char)info->data[i]);
-					printf("\n");
-					offset = info->data + info->length + 2;
+					done = TRUE;
+					break;
+				}
+
+				usleep(100);
+				continue;
+			}
+
+			error = TRUE;
+		}
+
+		if (!done && !error)
+		{
+			evt_le_meta_event *meta = (void *)(buf + (1 + HCI_EVENT_HDR_SIZE));
+
+			len -= (1 + HCI_EVENT_HDR_SIZE);
+
+			if (meta->subevent != EVT_LE_ADVERTISING_REPORT)
+			{
+				printf("1");
+				continue;
+			}
+
+			le_advertising_info *info = (le_advertising_info *)(meta->data + 1);
+
+			printw("Event: %d\n", info->evt_type);
+			printw("Length: %d\n", info->length);
+
+			if (info->length == 0)
+			{
+				continue;
+			}
+
+			int current_index = 0;
+			int data_error = 0;
+
+			while (!data_error && current_index < info->length)
+			{
+				printf("read while");
+
+				size_t data_len = info->data[current_index];
+
+				if (data_len + 1 > info->length)
+				{
+					printw("EIR data length is longer than EIR packet length. %d + 1 > %d", data_len, info->length);
+					data_error = 1;
+				}
+				else
+				{
+					process_data(info->data + current_index + 1, data_len, info);
+					// get_rssi(&info->bdaddr, current_hci_state);
+					current_index += data_len + 1;
 				}
 			}
 		}
 	}
 
-	// Prevent SIGALARM from firing during the clean up procedure
-	if ( sigprocmask( SIG_BLOCK, &sigalrm_set, NULL ) != 0 )
+	if (error)
 	{
-		hci_close_dev(device);
-		perror( "Could not block alarm signal" );
-		return 0;
+		printw("Error scanning.");
 	}
 
-	exit_clean();
-	return 0;
+	stop_hci_scan(current_hci_state);
+
+	error_check_and_exit(current_hci_state);
+
+	close_hci_device(current_hci_state);
+
+	endwin();
 }
