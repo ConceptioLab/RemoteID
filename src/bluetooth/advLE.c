@@ -129,8 +129,11 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    /* uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
-    uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736 */
+    if (!config.use_gps)
+    {
+        uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
+        uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
+    }
     uasData->System.AreaCount = 1;
     uasData->System.AreaRadius = 0;
     uasData->System.AreaCeiling = 0;
@@ -516,7 +519,7 @@ void *gps_thread_function(struct gps_loop_args *args)
             if (uasData->System.OperatorLatitude != 0)
                 first++;
 
-            usleep(800);
+            usleep(8000);
         }
         else
         {
@@ -580,7 +583,6 @@ int main(int argc, char *argv[])
             return 1;
         }
 
-        // pthread_create(&gps_thread, NULL, (void *)&gps_loop, &args);
         while (true)
         {
             if (kill_program)
