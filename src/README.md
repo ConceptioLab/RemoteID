@@ -35,3 +35,10 @@ Exemplo:
 ```bash
 sudo ./advLE l g
 ```
+
+# Executanco o Scan
+
+```bash
+sudo gcc src/bluetooth/scan.c -o scan -lbluetooth -lm
+sudo ./scan
+```
