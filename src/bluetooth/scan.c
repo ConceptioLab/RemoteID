@@ -178,6 +178,7 @@ int main()
 							// page = info->data & 0x0f;
 							decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
 							// UAS_data.AuthValid[page] = 1;
+							printf("Auth");
 							break;
 
 						case 0x30:
