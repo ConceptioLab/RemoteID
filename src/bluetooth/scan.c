@@ -147,7 +147,6 @@ int main()
 			{
 				uint8_t reports_count = meta_event->data[0];
 				void *offset = meta_event->data + 1;
-				unsigned char msd = (info->data[7] >> 4) & 0xF;
 				while (reports_count--)
 				{
 					info = (le_advertising_info *)offset;
@@ -163,7 +162,7 @@ int main()
 						for (int i = 0; i < info->length; i++)
 						{
 
-							/* switch (info->data[7] & 0xf0)
+							switch (info->data[7] & 0xf0)
 							{
 							case 0x00:
 								decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
@@ -182,7 +181,7 @@ int main()
 								page = info->data & 0x0f;
 								decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
 								UAS_data.AuthValid[page] = 1;
-								break; 
+								break; */
 
 							case 0x30:
 								decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
@@ -206,7 +205,7 @@ int main()
 								decodeMessagePack(&UAS_data, encoded_data);
 								printf("Message Pack ");
 								break;
-							} */
+							}
 
 							printf("%02X ", info->data[i]);
 						}
