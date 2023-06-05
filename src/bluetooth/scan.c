@@ -160,7 +160,7 @@ int main()
 						printf("Endereço: %s\n", addr);
 						printf("Tipo de mensagem: ");
 
-						switch (info->data[7] & 0xf0)
+						switch (info->data[6] & 0xf0)
 						{
 						case 0x00:
 							decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
