@@ -162,49 +162,52 @@ int main()
 						for (int i = 0; i < info->length; i++)
 						{
 
-							switch (info->data[7] & 0xf0)
+							if (i == 7)
 							{
-							case 0x00:
-								decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
-								UAS_data.BasicIDValid[0] = 1;
-								printf("Basic ID ");
-								break;
+								switch (info->data[i] & 0xf0)
+								{
+								case 0x00:
+									decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
+									UAS_data.BasicIDValid[0] = 1;
+									printf("Basic ID ");
+									break;
 
-							case 0x10:
-								decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&info->data);
-								UAS_data.LocationValid = 1;
-								printf("Location ");
+								case 0x10:
+									decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&info->data);
+									UAS_data.LocationValid = 1;
+									printf("Location ");
 
-								break;
+									break;
 
-							/* case 0x20:
-								page = info->data & 0x0f;
-								decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
-								UAS_data.AuthValid[page] = 1;
-								break; */
+									/* case 0x20:
+										page = info->data & 0x0f;
+										decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
+										UAS_data.AuthValid[page] = 1;
+										break; */
 
-							case 0x30:
-								decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
-								UAS_data.SelfIDValid = 1;
-								printf("Self ID ");
-								break;
+								case 0x30:
+									decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
+									UAS_data.SelfIDValid = 1;
+									printf("Self ID ");
+									break;
 
-							case 0x40:
-								decodeSystemMessage(&UAS_data.System, (ODID_System_encoded *)&info->data);
-								UAS_data.SystemValid = 1;
-								printf("System Message ");
-								break;
+								case 0x40:
+									decodeSystemMessage(&UAS_data.System, (ODID_System_encoded *)&info->data);
+									UAS_data.SystemValid = 1;
+									printf("System Message ");
+									break;
 
-							case 0x50:
-								decodeOperatorIDMessage(&UAS_data.OperatorID, (ODID_OperatorID_encoded *)&info->data);
-								UAS_data.OperatorIDValid = 1;
-								printf("Operator ID ");
-								break;
+								case 0x50:
+									decodeOperatorIDMessage(&UAS_data.OperatorID, (ODID_OperatorID_encoded *)&info->data);
+									UAS_data.OperatorIDValid = 1;
+									printf("Operator ID ");
+									break;
 
-							case 0xf0:
-								decodeMessagePack(&UAS_data, encoded_data);
-								printf("Message Pack ");
-								break;
+								case 0xf0:
+									decodeMessagePack(&UAS_data, encoded_data);
+									printf("Message Pack ");
+									break;
+								}
 							}
 
 							printf("%02X ", info->data[i]);
