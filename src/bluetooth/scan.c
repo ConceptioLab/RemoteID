@@ -203,6 +203,7 @@ int main()
 							printf("Message Pack");
 							break;
 						}
+						printf("\n");
 						printf("Dados: ");
 						for (int i = 0; i < info->length; i++)
 						{
