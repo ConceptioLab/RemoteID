@@ -49,10 +49,11 @@ int main()
 		perror("Failed to open HCI device.");
 		return 0;
 	}
+
+	// Resetar adaptador.
 	hci_send_cmd(device, OGF_HOST_CTL, OCF_RESET, 0, 0);
 
-	// Set BLE scan parameters.
-
+	// Setar BLE scan parameters.
 	le_set_scan_parameters_cp scan_params_cp;
 	memset(&scan_params_cp, 0, sizeof(scan_params_cp));
 	scan_params_cp.type = 0x00;
@@ -72,7 +73,6 @@ int main()
 	}
 
 	// Set BLE events report mask.
-
 	le_set_event_mask_cp event_mask_cp;
 	memset(&event_mask_cp, 0, sizeof(le_set_event_mask_cp));
 	int i = 0;
@@ -89,7 +89,6 @@ int main()
 	}
 
 	// Enable scanning.
-
 	le_set_scan_enable_cp scan_cp;
 	memset(&scan_cp, 0, sizeof(scan_cp));
 	scan_cp.enable = 0x01;	   // Enable flag.
@@ -106,7 +105,6 @@ int main()
 	}
 
 	// Get Results.
-
 	struct hci_filter nf;
 	hci_filter_clear(&nf);
 	hci_filter_set_ptype(HCI_EVENT_PKT, &nf);
@@ -151,7 +149,9 @@ int main()
 				{
 					info = (le_advertising_info *)offset;
 
-					if (info->data[2] == 0xFA && info->data[3] == 0xFF && info->data[4] == 0x0D)
+					if (info->data[2] == 0xFA &&
+						info->data[3] == 0xFF &&
+						info->data[4] == 0x0D)
 					{
 						// Processar os dados do dispositivo com o UUID 0xFFFA e APP 0x0D
 						char addr[18];
@@ -212,6 +212,8 @@ int main()
 							printf("%02X ", info->data[i]);
 						}
 						printf("\n");
+						// Aqui vai mandar para json. Os dados já estão decodificados nos respectivos decode, e salvos em UAS_data.
+						// Verificar se estão sendo decodificados corretamente.
 					}
 					offset = info->data + info->length + 2;
 				}
