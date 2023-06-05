@@ -153,13 +153,14 @@ int main()
 
 					if (info->data[2] == 0xFA && info->data[3] == 0xFF && info->data[4] == 0x0D)
 					{
-						// Processar os dados do dispositivo com o UUID 0xFFFA
+						// Processar os dados do dispositivo com o UUID 0xFFFA e APP 0x0D
 						char addr[18];
 						ba2str(&(info->bdaddr), addr);
 						printf("Dispositivo encontrado com UUID 0xFFFA:\n");
 						printf("Endereço: %s\n", addr);
 						printf("Tipo de mensagem: ");
 
+						// Verificar tipo de mensagem pelo digito mais significativo do message header.
 						switch (info->data[6] & 0xf0)
 						{
 						case 0x00:
