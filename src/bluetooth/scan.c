@@ -12,6 +12,7 @@
 #include <bluetooth/hci_lib.h>
 
 #include "opendroneid.h"
+#include "opendroneid.c"
 
 static bool kill_program = false;
 
