@@ -461,6 +461,7 @@ void init_bluetooth(struct config_data *config)
     hci_reset(device_descriptor);
     hci_le_set_advertising_parameters(device_descriptor, 100);
     hci_le_set_random_address(device_descriptor, mac);
+    hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);//Seta random address
 
     // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);

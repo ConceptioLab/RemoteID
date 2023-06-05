@@ -11,6 +11,8 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
+#include "opendroneid.h"
+
 static bool kill_program = false;
 
 struct hci_request ble_hci_request(uint16_t ocf, int clen, void *status, void *cparam)
@@ -125,11 +127,14 @@ int main()
 	uint8_t buf[HCI_MAX_EVENT_SIZE];
 	evt_le_meta_event *meta_event;
 	le_advertising_info *info;
-	int len;
+	int len, page;
+
+	ODID_UAS_Data UAS_data;
+	ODID_MessagePack_encoded *encoded_data = (ODID_MessagePack_encoded *)&info->data;
 
 	while (1)
 	{
-		if(kill_program)
+		if (kill_program)
 			break;
 
 		len = read(device, buf, sizeof(buf));
@@ -141,9 +146,11 @@ int main()
 			{
 				uint8_t reports_count = meta_event->data[0];
 				void *offset = meta_event->data + 1;
+				unsigned char msd = (info->data[7] >> 4) & 0xF;
 				while (reports_count--)
 				{
 					info = (le_advertising_info *)offset;
+
 					if (info->data[2] == 0xFA && info->data[3] == 0xFF && info->data[4] == 0x0D)
 					{
 						// Processar os dados do dispositivo com o UUID 0xFFFA
@@ -154,6 +161,52 @@ int main()
 						printf("Dados: ");
 						for (int i = 0; i < info->length; i++)
 						{
+
+							switch (info->data[7] & 0xf0)
+							{
+							case 0x00:
+								decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
+								UAS_data.BasicIDValid[0] = 1;
+								printf("Basic ID ");
+								break;
+
+							case 0x10:
+								decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&info->data);
+								UAS_data.LocationValid = 1;
+								printf("Location ");
+
+								break;
+
+							/* case 0x20:
+								page = info->data & 0x0f;
+								decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
+								UAS_data.AuthValid[page] = 1;
+								break; */
+
+							case 0x30:
+								decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
+								UAS_data.SelfIDValid = 1;
+								printf("Self ID ");
+								break;
+
+							case 0x40:
+								decodeSystemMessage(&UAS_data.System, (ODID_System_encoded *)&info->data);
+								UAS_data.SystemValid = 1;
+								printf("System Message ");
+								break;
+
+							case 0x50:
+								decodeOperatorIDMessage(&UAS_data.OperatorID, (ODID_OperatorID_encoded *)&info->data);
+								UAS_data.OperatorIDValid = 1;
+								printf("Operator ID ");
+								break;
+
+							case 0xf0:
+								decodeMessagePack(&UAS_data, encoded_data);
+								printf("Message Pack ");
+								break;
+							}
+
 							printf("%02X ", info->data[i]);
 						}
 						printf("\n");
