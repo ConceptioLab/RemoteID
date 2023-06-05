@@ -159,7 +159,8 @@ int main()
 						printf("Dispositivo encontrado com UUID 0xFFFA:\n");
 						printf("Endereço: %s\n", addr);
 						printf("Tipo de mensagem: ");
-						switch (info->data[i] & 0xf0)
+
+						switch (info->data[7] & 0xf0)
 						{
 						case 0x00:
 							decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
@@ -171,14 +172,13 @@ int main()
 							decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&info->data);
 							UAS_data.LocationValid = 1;
 							printf("Location");
-
 							break;
 
-							/* case 0x20:
-								page = info->data & 0x0f;
-								decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
-								UAS_data.AuthValid[page] = 1;
-								break; */
+						case 0x20:
+							// page = info->data & 0x0f;
+							decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
+							// UAS_data.AuthValid[page] = 1;
+							break;
 
 						case 0x30:
 							decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
