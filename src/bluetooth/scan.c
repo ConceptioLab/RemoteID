@@ -144,7 +144,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	/* JSON */
 
-	sprintf(json, "{ \"mac\" : \"%02x:%02x:%02x:%02x:%02x:%02x\"",
+	sprintf(json, "{ \"mac\" : \"%02x:%02x:%02x:%02x:%02x:%02x\" {",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	write_json(json);
 
@@ -339,7 +339,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
-	write_json(" }\n");
+	write_json(" }}\n");
 
 	/* */
 
