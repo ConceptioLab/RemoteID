@@ -350,7 +350,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 #endif
 
 	write_json(" }\n");
-	printf("%s\n", json);
+	printf("%s\n\n", json);
 
 	/* */
 
