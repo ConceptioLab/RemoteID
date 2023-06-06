@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "../opendroneid.h"
+#include "../include/opendroneid.h"
 
 #define MAX_UAVS    20
 #define ID_OD_AUTH_DATUM  1546300800LU

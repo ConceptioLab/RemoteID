@@ -12,7 +12,7 @@
 #ifndef _BLUETOOTH_H_
 #define _BLUETOOTH_H_
 
-#include "../utils.h"
+#include "../include/utils.h"
 
 void init_bluetooth(struct config_data *config);
 void send_bluetooth_message(const union ODID_Message_encoded *encoded, uint8_t msg_counter, struct config_data *config);

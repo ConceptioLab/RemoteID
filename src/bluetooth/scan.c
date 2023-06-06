@@ -15,8 +15,8 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-#include "../opendroneid.h"
-#include "../opendroneid.c"
+#include "../include/opendroneid.h"
+#include "../include/opendroneid.c"
 #include "scan.h"
 
 #define DEBUG_FILE 1
@@ -223,11 +223,11 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 		sprintf(json, ", \"uav altitude\" : %d, \"uav heading\" : %d",
 			(int)UAS_data.Location.AltitudeGeo, (int)UAS_data.Location.Direction);
 		write_json(json);
-#if 0
-    sprintf(json,", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
-           (int) UAS_data.Location.SpeedHorizontal,(int) UAS_data.Location.SpeedVertical);
-    //write_json(json);
-#endif
+
+		sprintf(json, ", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
+			(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.SpeedVertical);
+		write_json(json);
+
 		sprintf(json, ", \"uav speed\" : %d, \"seconds\" : %d",
 			(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.TimeStamp);
 		write_json(json);
@@ -316,7 +316,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 					       (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
 			write_json(json);
 
-#if 1
 			write_json(", \"values\" : [");
 
 			for (i = 0; i < ((page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE); ++i)
@@ -326,9 +325,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				write_json(json);
 			}
 
-			write_json(" ]");
-#endif
-			write_json(" }");
+			write_json(" ]  }");
 
 			memcpy(&RID_data[RID_index].odid_data.Auth[page], &UAS_data.Auth[page], sizeof(ODID_Auth_data));
 		}

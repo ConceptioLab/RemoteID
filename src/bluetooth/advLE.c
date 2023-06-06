@@ -9,14 +9,14 @@
 #include <signal.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include "../gpsmod.c"
+#include "../include/gpsmod.c"
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-#include "../opendroneid.h"
-#include "../opendroneid.c"
+#include "../include/opendroneid.h"
+#include "../include/opendroneid.c"
 #include "bluetooth.h"
 #include "print_bt_features.h"
 
