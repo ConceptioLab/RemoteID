@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "opendroneid.h"
+#include "../opendroneid.h"
 
 #define MAX_UAVS    20
 typedef __u_char u_char;
