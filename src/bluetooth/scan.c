@@ -156,7 +156,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	sprintf(json, "{ \"mac\" : \"%02x:%02x:%02x:%02x:%02x:%02x\"",
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	printf("%02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	write_json(json);
 
 #if 1
@@ -386,9 +385,9 @@ void advert_odid(evt_le_meta_event *event, int *adverts)
 
 		const int odid_offset = 5;
 
-		if ((advert->data[4] == 0x0d) &&
-			(advert->data[2] == 0xfa) &&
-			(advert->data[3] == 0xff))
+		if ((advert->data[4] == 0x0D) &&
+			(advert->data[2] == 0xFA) &&
+			(advert->data[3] == 0xFF))
 		{
 			printf("%s\n", address);
 			++(*adverts);
