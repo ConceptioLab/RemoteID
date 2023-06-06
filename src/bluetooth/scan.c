@@ -389,7 +389,6 @@ void advert_odid(evt_le_meta_event *event, int *adverts)
 			(advert->data[2] == 0xFA) &&
 			(advert->data[3] == 0xFF))
 		{
-			printf("%s\n", address);
 			++(*adverts);
 			parse_odid(mac, &advert->data[odid_offset], advert->length - odid_offset, 0, "BlueZ", NULL);
 		}
@@ -406,14 +405,12 @@ int parse_bluez_sniffer(int device)
 
 	event = (evt_le_meta_event *)&buffer[HCI_EVENT_HDR_SIZE + 1];
 
-			printf("irei ler");
 
 	if ((bytes = read(device, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
 	{
 
 		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
 		{
-			printf("localizei um advertising");
 			advert_odid(event, &adverts);
 		}
 		++counter;
