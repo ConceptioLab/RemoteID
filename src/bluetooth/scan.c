@@ -100,16 +100,17 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	++RID_data[RID_index].packets;
 	RID_data[RID_index].rssi = rssi;
 
+#if 0
 	if (note)
 	{
-		// displaynote(RID_index + 1, note);
+		display_note(RID_index + 1, note);
 	}
 
 	if (volts)
 	{
-		// displayvoltage(RID_index + 1, *volts);
+		display_voltage(RID_index + 1, *volts);
 	}
-
+#endif
 	memset(&UAS_data, 0, sizeof(UAS_data));
 
 	switch (payload[1] & 0xf0)
@@ -182,7 +183,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 		write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.OperatorID, &UAS_data.OperatorID, sizeof(ODID_OperatorID_data));
-		// displayidentifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
+		// display_identifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
 	}
 
 	for (j = 0; j < ODID_BASIC_ID_MAX_MESSAGES; ++j)
@@ -201,7 +202,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				sprintf(json, ", \"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
 				write_json(json);
 #if 0
-        //displayidentifier(RID_index + 1,UAS_data.BasicID[j].UASID);
+        //display_identifier(RID_index + 1,UAS_data.BasicID[j].UASID);
 #endif
 				break;
 
@@ -209,7 +210,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				memcpy(&RID_data[RID_index].basic_caa_reg, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
 				sprintf(json, ", \"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
 				write_json(json);
-				// displayidentifier(RID_index + 1, UAS_data.BasicID[j].UASID);
+				// display_identifier(RID_index + 1, UAS_data.BasicID[j].UASID);
 				break;
 
 			case ODID_IDTYPE_NONE:
@@ -243,7 +244,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 		memcpy(&RID_data[RID_index].odid_data.Location, &UAS_data.Location, sizeof(ODID_Location_data));
 
-		// displayuav_loc(RID_index + 1, latitude, longitude, (int)altitude, (int)UAS_data.Location.TimeStamp);
+		// display_uav_loc(RID_index + 1, latitude, longitude, (int)altitude, (int)UAS_data.Location.TimeStamp);
 
 		if ((latitude < RID_data[RID_index].min_lat) || (RID_data[RID_index].min_lat == 0.0))
 		{
@@ -292,7 +293,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
 
-		// displaytimestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
+		// display_timestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
 	}
 
 	if (UAS_data.SelfIDValid)
@@ -317,7 +318,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 						((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
 				write_json(json);
 
-				// displaytimestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
+				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
 			sprintf(json, ", \"auth page %d\" : { \"text\" : \"%s\"", page,
@@ -345,7 +346,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 #if VERIFY
 	authenticated = parse_auth(&UAS_data, encoded_data, &RID_data[RID_index]);
-	// displaypass(RID_index + 1, (authenticated) ? pass_s : "    ");
+	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
 	write_json(" }\n");
@@ -418,7 +419,7 @@ int parse_bluez_sniffer()
 int main()
 {
 	int ret, status;
-	// displayinit();
+	// display_init();
 
 	// Get HCI device.
 
@@ -539,10 +540,12 @@ int main()
 	}
 
 	hci_close_dev(device);
-	// displayend();
+	// display_end();
 
 	return 0;
 }
+
+#define UDP_BUFFER_SIZE 800 // Should really be 500, but we can get close to 500 with packed messages.
 
 int write_json(char *json)
 {
@@ -650,7 +653,7 @@ int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
 		sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
 				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-		// display_mac(oldest + 1, mac);
+		// display__mac(oldest + 1, mac);
 
 		fprintf(stderr, " - using RID record %d\n", oldest);
 
