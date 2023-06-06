@@ -22,7 +22,7 @@
 #define DEBUG_FILE 1
 
 static bool kill_program = false;
-static int sniffer = -1, json_socket = -1;
+static int sniffer = -1, json_socket = -1, max_udp_length = 0;
 static uint32_t counter = 1;
 static struct UAV_RID RID_data[MAX_UAVS];
 static struct sockaddr_in server;
