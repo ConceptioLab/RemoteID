@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include "gpsmod.c"
+#include "../gpsmod.c"
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>

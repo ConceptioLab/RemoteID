@@ -30,19 +30,11 @@ static struct sockaddr_in server;
 static FILE *debug_file = NULL;
 static char *log_dir = NULL;
 char text[128];
-const mode_t file_mode = 0666, dir_mode = 0777;
+const mode_t file_mode = 0666;
 
-static const char default_key[] = "0123456789abcdef",
-				  default_iv[] = "nopqrs",
-				  default_server[] = "127.0.0.1",
-				  debug_filename[] = "debug.txt",
-				  device_pi[] = "wlan1",
-				  device_i686[] = "wlp5s0b1",
-				  default_log_dir[] = "/tmp/rid_capture",
-				  default_www_dir[] = "www",
-				  dummy[] = "";
+static const char debug_filename[] = "debug.txt";
 
-static volatile uint32_t rx_packets = 0, odid_packets = 0;
+static volatile uint32_t odid_packets = 0;
 
 struct hci_request ble_hci_request(uint16_t ocf, int clen, void *status, void *cparam)
 {
@@ -405,10 +397,8 @@ int parse_bluez_sniffer(int device)
 
 	event = (evt_le_meta_event *)&buffer[HCI_EVENT_HDR_SIZE + 1];
 
-
 	if ((bytes = read(device, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
 	{
-
 		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
 		{
 			advert_odid(event, &adverts);
@@ -424,7 +414,6 @@ int main()
 	// display_init();
 
 	// Get HCI device.
-
 	const int device = hci_open_dev(hci_get_route(NULL));
 	if (device < 0)
 	{
@@ -519,6 +508,8 @@ int main()
 	ODID_UAS_Data UAS_data;
 	ODID_MessagePack_encoded *encoded_data = (ODID_MessagePack_encoded *)&info->data;
 
+	//Tratamento de dados json.
+
 	while (1)
 	{
 		if (kill_program)
@@ -560,38 +551,6 @@ int write_json(char *json)
 
 	if (json_socket > -1)
 	{
-
-#if UDP_BUFFER_SIZE
-		while (*json)
-		{
-
-			udp_buffer[index++] = c = (uint8_t)*json++;
-
-			if ((c == 0x0a) ||
-				(c == 0x0d) ||
-				(index >= UDP_BUFFER_SIZE))
-			{
-
-				udp_buffer[index] = 0;
-
-				if ((status = sendto(json_socket, udp_buffer, index, 0,
-									 (struct sockaddr *)&server, sizeof(server))) < 0)
-				{
-
-					fprintf(stderr, "%s(): %d, %d, %d\n",
-							__func__, index, status, errno);
-				}
-
-				if (index > max_udp_length)
-				{
-					max_udp_length = index;
-				}
-
-				index = 0;
-				break;
-			}
-		}
-#else
 		if ((status = sendto(json_socket, json, l = strlen(json), 0,
 							 (struct sockaddr *)&server, sizeof(server))) < 0)
 		{
@@ -599,7 +558,6 @@ int write_json(char *json)
 			fprintf(stderr, "%s(): %d, %d, %d\n",
 					__func__, l, status, errno);
 		}
-#endif
 	}
 	else
 	{
