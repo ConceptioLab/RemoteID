@@ -411,6 +411,7 @@ int parse_bluez_sniffer()
 
 		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
 		{
+			printf("localizei um advertising");
 			advert_odid(event, &adverts);
 		}
 		++counter;
