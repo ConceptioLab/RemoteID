@@ -169,7 +169,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.OperatorIDValid)
 	{
 
-		sprintf(json, ", \"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
+		sprintf(json, "\"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
 		write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.OperatorID, &UAS_data.OperatorID, sizeof(ODID_OperatorID_data));
@@ -189,7 +189,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 			case ODID_IDTYPE_SERIAL_NUMBER:
 				memcpy(&RID_data[RID_index].basic_serial, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
-				sprintf(json, ", \"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				sprintf(json, "\"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
 				write_json(json);
 #if 0
         //display_identifier(RID_index + 1,UAS_data.BasicID[j].UASID);
@@ -198,7 +198,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 			case ODID_IDTYPE_CAA_REGISTRATION_ID:
 				memcpy(&RID_data[RID_index].basic_caa_reg, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
-				sprintf(json, ", \"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				sprintf(json, "\"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
 				write_json(json);
 				// display_identifier(RID_index + 1, UAS_data.BasicID[j].UASID);
 				break;
@@ -217,7 +217,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 		longitude = UAS_data.Location.Longitude;
 		altitude = UAS_data.Location.AltitudeGeo;
 
-		sprintf(json, ", \"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
+		sprintf(json, "\"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
 			latitude, longitude);
 		write_json(json);
 		sprintf(json, ", \"uav altitude\" : %d, \"uav heading\" : %d",
@@ -274,10 +274,10 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.SystemValid)
 	{
 
-		sprintf(json, ", \"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
+		sprintf(json, "\"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
 			UAS_data.System.OperatorLatitude, UAS_data.System.OperatorLongitude);
 		write_json(json);
-		sprintf(json, ", \"unix time\" : %lu",
+		sprintf(json, "\"unix time\" : %lu",
 			((unsigned long int)UAS_data.System.Timestamp) + ID_OD_AUTH_DATUM);
 		write_json(json);
 
@@ -289,7 +289,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.SelfIDValid)
 	{
 
-		sprintf(json, ", \"self id\" : \"%s\"", UAS_data.SelfID.Desc);
+		sprintf(json, "\"self id\" : \"%s\"", UAS_data.SelfID.Desc);
 		write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.SelfID, &UAS_data.SelfID, sizeof(ODID_SelfID_data));
@@ -304,14 +304,14 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 			if (page == 0)
 			{
 
-				sprintf(json, ", \"unix time (alt)\" : %lu",
+				sprintf(json, "\"unix time (alt)\" : %lu, ",
 					((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
 				write_json(json);
 
 				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
-			sprintf(json, ", \"auth page %d\" : { \"text\" : \"%s\"", page,
+			sprintf(json, "\"auth page %d\" : { \"text\" : \"%s\"", page,
 				printable_text(UAS_data.Auth[page].AuthData,
 					       (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
 			write_json(json);
@@ -339,7 +339,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
-	write_json(" }}\n");
+	write_json(" }  }\n");
 
 	/* */
 
