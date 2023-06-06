@@ -3,25 +3,44 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <time.h>
 
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #include <sys/socket.h>
+
+#include <ctype.h>
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-#include <ctype.h>
-
 #include "../opendroneid.h"
 #include "../opendroneid.c"
 #include "scan.h"
+
+#define DEBUG_FILE 1
 
 static bool kill_program = false;
 static int sniffer = -1, json_socket = -1;
 static uint32_t counter = 1;
 static struct UAV_RID RID_data[MAX_UAVS];
 static struct sockaddr_in server;
+
+static FILE *debug_file = NULL;
+static char *log_dir = NULL;
+char text[128];
+const mode_t file_mode = 0666, dir_mode = 0777;
+
+static const char default_key[] = "0123456789abcdef",
+				  default_iv[] = "nopqrs",
+				  default_server[] = "127.0.0.1",
+				  debug_filename[] = "debug.txt",
+				  device_pi[] = "wlan1",
+				  device_i686[] = "wlp5s0b1",
+				  default_log_dir[] = "/tmp/rid_capture",
+				  default_www_dir[] = "www",
+				  dummy[] = "";
 
 static volatile uint32_t rx_packets = 0, odid_packets = 0;
 
@@ -83,12 +102,12 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	if (note)
 	{
-		//displaynote(RID_index + 1, note);
+		// displaynote(RID_index + 1, note);
 	}
 
 	if (volts)
 	{
-		//displayvoltage(RID_index + 1, *volts);
+		// displayvoltage(RID_index + 1, *volts);
 	}
 
 	memset(&UAS_data, 0, sizeof(UAS_data));
@@ -136,11 +155,11 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	sprintf(json, "{ \"mac\" : \"%02x:%02x:%02x:%02x:%02x:%02x\"",
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	//write_json(json);
+	// write_json(json);
 
 #if 1
 	sprintf(json, ", \"rssi\" : %d", rssi);
-	//write_json(json);
+	// write_json(json);
 #endif
 
 #if 0
@@ -160,10 +179,10 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	{
 
 		sprintf(json, ", \"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
-		//write_json(json);
+		// write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.OperatorID, &UAS_data.OperatorID, sizeof(ODID_OperatorID_data));
-		//displayidentifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
+		// displayidentifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
 	}
 
 	for (j = 0; j < ODID_BASIC_ID_MAX_MESSAGES; ++j)
@@ -180,7 +199,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 			case ODID_IDTYPE_SERIAL_NUMBER:
 				memcpy(&RID_data[RID_index].basic_serial, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
 				sprintf(json, ", \"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
-				//write_json(json);
+				// write_json(json);
 #if 0
         //displayidentifier(RID_index + 1,UAS_data.BasicID[j].UASID);
 #endif
@@ -189,8 +208,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 			case ODID_IDTYPE_CAA_REGISTRATION_ID:
 				memcpy(&RID_data[RID_index].basic_caa_reg, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
 				sprintf(json, ", \"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
-				//write_json(json);
-				//displayidentifier(RID_index + 1, UAS_data.BasicID[j].UASID);
+				// write_json(json);
+				// displayidentifier(RID_index + 1, UAS_data.BasicID[j].UASID);
 				break;
 
 			case ODID_IDTYPE_NONE:
@@ -209,10 +228,10 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 		sprintf(json, ", \"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
 				latitude, longitude);
-		//write_json(json);
+		// write_json(json);
 		sprintf(json, ", \"uav altitude\" : %d, \"uav heading\" : %d",
 				(int)UAS_data.Location.AltitudeGeo, (int)UAS_data.Location.Direction);
-		//write_json(json);
+		// write_json(json);
 #if 0
     sprintf(json,", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
            (int) UAS_data.Location.SpeedHorizontal,(int) UAS_data.Location.SpeedVertical);
@@ -220,11 +239,11 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 #endif
 		sprintf(json, ", \"uav speed\" : %d, \"seconds\" : %d",
 				(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.TimeStamp);
-		//write_json(json);
+		// write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.Location, &UAS_data.Location, sizeof(ODID_Location_data));
 
-		//displayuav_loc(RID_index + 1, latitude, longitude, (int)altitude, (int)UAS_data.Location.TimeStamp);
+		// displayuav_loc(RID_index + 1, latitude, longitude, (int)altitude, (int)UAS_data.Location.TimeStamp);
 
 		if ((latitude < RID_data[RID_index].min_lat) || (RID_data[RID_index].min_lat == 0.0))
 		{
@@ -266,21 +285,21 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 		sprintf(json, ", \"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
 				UAS_data.System.OperatorLatitude, UAS_data.System.OperatorLongitude);
-		//write_json(json);
+		// write_json(json);
 		sprintf(json, ", \"unix time\" : %lu",
 				((unsigned long int)UAS_data.System.Timestamp) + ID_OD_AUTH_DATUM);
-		//write_json(json);
+		// write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
 
-		//displaytimestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
+		// displaytimestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
 	}
 
 	if (UAS_data.SelfIDValid)
 	{
 
 		sprintf(json, ", \"self id\" : \"%s\"", UAS_data.SelfID.Desc);
-		//write_json(json);
+		// write_json(json);
 
 		memcpy(&RID_data[RID_index].odid_data.SelfID, &UAS_data.SelfID, sizeof(ODID_SelfID_data));
 	}
@@ -296,29 +315,29 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 				sprintf(json, ", \"unix time (alt)\" : %lu",
 						((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
-				//write_json(json);
+				// write_json(json);
 
-				//displaytimestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
+				// displaytimestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
 			sprintf(json, ", \"auth page %d\" : { \"text\" : \"%s\"", page,
 					printable_text(UAS_data.Auth[page].AuthData,
 								   (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
-			//write_json(json);
+			// write_json(json);
 
 #if 1
-			//write_json(", \"values\" : [");
+			// write_json(", \"values\" : [");
 
 			for (i = 0; i < ((page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE); ++i)
 			{
 
 				sprintf(json, "%s %d", (i) ? "," : "", UAS_data.Auth[page].AuthData[i]);
-				//write_json(json);
+				// write_json(json);
 			}
 
-			//write_json(" ]");
+			// write_json(" ]");
 #endif
-			//write_json(" }");
+			// write_json(" }");
 
 			memcpy(&RID_data[RID_index].odid_data.Auth[page], &UAS_data.Auth[page], sizeof(ODID_Auth_data));
 		}
@@ -326,10 +345,10 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 #if VERIFY
 	authenticated = parse_auth(&UAS_data, encoded_data, &RID_data[RID_index]);
-	//displaypass(RID_index + 1, (authenticated) ? pass_s : "    ");
+	// displaypass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
-	//write_json(" }\n");
+	// write_json(" }\n");
 
 	/* */
 
@@ -389,7 +408,7 @@ int parse_bluez_sniffer()
 
 		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
 		{
-			advert_odid(&event, &adverts);
+			advert_odid(event, &adverts);
 		}
 		++counter;
 	}
@@ -399,8 +418,7 @@ int parse_bluez_sniffer()
 int main()
 {
 	int ret, status;
-    //displayinit();
-
+	// displayinit();
 
 	// Get HCI device.
 
@@ -465,6 +483,12 @@ int main()
 		return 0;
 	}
 
+#if DEBUG_FILE
+	sprintf(text, "%s/%s", log_dir, debug_filename);
+	debug_file = fopen(text, "w");
+	chmod(text, file_mode);
+#endif
+
 	// Get Results.
 	struct hci_filter nf;
 	hci_filter_clear(&nf);
@@ -497,10 +521,7 @@ int main()
 		if (kill_program)
 			break;
 
-		if (parse_bluez_sniffer() < 1)
-		{
-			break;
-		}
+		parse_bluez_sniffer();
 	}
 
 	// Disable scanning.
@@ -518,7 +539,7 @@ int main()
 	}
 
 	hci_close_dev(device);
-	//displayend();
+	// displayend();
 
 	return 0;
 }
@@ -584,4 +605,118 @@ int write_json(char *json)
 	}
 
 	return 0;
+}
+
+int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
+{
+
+	int i, RID_index = 0, oldest = 0;
+	char text[64];
+	time_t secs, oldest_secs;
+
+	time(&secs);
+
+	RID_index =
+		oldest = 0;
+	oldest_secs = secs;
+
+	for (i = 0; i < MAX_UAVS; ++i)
+	{
+
+		if (memcmp(mac, RID_data[i].mac, 6) == 0)
+		{
+
+			RID_index = i;
+			RID_data[i].last_rx = secs;
+
+			break;
+		}
+
+		if (RID_data[i].last_rx < oldest_secs)
+		{
+
+			oldest = i;
+			oldest_secs = RID_data[i].last_rx;
+		}
+	}
+
+	if (i == MAX_UAVS)
+	{
+
+		struct UAV_RID *uav;
+
+		uav = &RID_data[oldest];
+
+		sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
+				mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+		// display_mac(oldest + 1, mac);
+
+		fprintf(stderr, " - using RID record %d\n", oldest);
+
+		RID_index = oldest;
+		uav->last_rx = secs;
+		uav->last_retx = 0;
+		uav->packets = 0;
+
+		memcpy(uav->mac, mac, 6);
+		memset(&uav->odid_data, 0, sizeof(ODID_UAS_Data));
+
+#if VERIFY
+		uav->auth_length = 0;
+		memset(uav->auth_buffer, 0, sizeof(uav->auth_buffer));
+#endif
+	}
+
+	return RID_index;
+}
+
+/*
+ *
+ */
+
+void dump(char *name, uint8_t *data, int len)
+{
+
+	int i;
+
+	if (debug_file)
+	{
+
+		fprintf(debug_file, "%s[] = {", name);
+
+		for (i = 0; i < len; ++i)
+		{
+
+			fprintf(debug_file, "%s 0x%02x", (i) ? "," : "", data[i]);
+		}
+
+		fprintf(debug_file, " };\n%s_s = \"%s\";\n", name, printable_text(data, len));
+
+		fflush(debug_file);
+	}
+
+	return;
+}
+
+/*
+ *
+ *  \ is 0x5c
+ */
+
+char *printable_text(uint8_t *data, int len)
+{
+
+	int i;
+	static char text[32];
+
+	for (i = 0; (i < 31) && (i < len); ++i)
+	{
+
+		text[i] = (isprint(data[i]) && (data[i] != '"') && (data[i] != '\\')) ? (char)data[i] : '.';
+	}
+
+	text[i] = 0;
+
+	return text;
 }

@@ -4,6 +4,7 @@
 #include "../opendroneid.h"
 
 #define MAX_UAVS    20
+#define ID_OD_AUTH_DATUM  1546300800LU
 typedef __u_char u_char;
 
 struct UAV_RID {u_char            mac[6], counter[16];
@@ -16,4 +17,7 @@ struct UAV_RID {u_char            mac[6], counter[16];
                 double            min_lat, max_lat, min_long, max_long, min_alt, max_alt;
 };
 
-#define ID_OD_AUTH_DATUM  1546300800LU
+void  parse_odid(u_char *,u_char *,int,int,const char *,const float *);
+int   mac_index(uint8_t *,struct UAV_RID *);
+void  dump(char *,uint8_t *,int);
+char *printable_text(uint8_t *,int);
