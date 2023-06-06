@@ -11,10 +11,19 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-#include "opendroneid.h"
-#include "opendroneid.c"
+#include <ctype.h>
+
+#include "../opendroneid.h"
+#include "../opendroneid.c"
+#include "scan.h"
 
 static bool kill_program = false;
+static int sniffer = -1, json_socket = -1;
+static uint32_t counter = 1;
+static struct UAV_RID RID_data[MAX_UAVS];
+static struct sockaddr_in server;
+
+static volatile uint32_t rx_packets = 0, odid_packets = 0;
 
 struct hci_request ble_hci_request(uint16_t ocf, int clen, void *status, void *cparam)
 {
@@ -37,9 +46,361 @@ static void sig_handler(int signo)
 	}
 }
 
+void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *note, const float *volts)
+{
+
+	int i, j, RID_index, page, authenticated;
+	char json[128];
+	uint8_t counter, index;
+	double latitude, longitude, altitude;
+	ODID_UAS_Data UAS_data;
+	ODID_MessagePack_encoded *encoded_data = (ODID_MessagePack_encoded *)&payload[1];
+
+	i = 0;
+	authenticated = 0;
+
+	/* */
+
+	RID_index = mac_index(mac, RID_data);
+
+	/* Decode */
+
+	counter = payload[0];
+	index = payload[1] >> 4;
+
+#if 1
+	if (RID_data[RID_index].counter[index] == counter)
+	{
+		return;
+	}
+#endif
+
+	RID_data[RID_index].counter[index] = counter;
+
+	++odid_packets;
+	++RID_data[RID_index].packets;
+	RID_data[RID_index].rssi = rssi;
+
+	if (note)
+	{
+		//displaynote(RID_index + 1, note);
+	}
+
+	if (volts)
+	{
+		//displayvoltage(RID_index + 1, *volts);
+	}
+
+	memset(&UAS_data, 0, sizeof(UAS_data));
+
+	switch (payload[1] & 0xf0)
+	{
+
+	case 0x00:
+		decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&payload[1]);
+		UAS_data.BasicIDValid[0] = 1;
+		break;
+
+	case 0x10:
+		decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&payload[1]);
+		UAS_data.LocationValid = 1;
+		break;
+
+	case 0x20:
+		page = payload[2] & 0x0f;
+		decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&payload[1]);
+		UAS_data.AuthValid[page] = 1;
+		break;
+
+	case 0x30:
+		decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&payload[1]);
+		UAS_data.SelfIDValid = 1;
+		break;
+
+	case 0x40:
+		decodeSystemMessage(&UAS_data.System, (ODID_System_encoded *)&payload[1]);
+		UAS_data.SystemValid = 1;
+		break;
+
+	case 0x50:
+		decodeOperatorIDMessage(&UAS_data.OperatorID, (ODID_OperatorID_encoded *)&payload[1]);
+		UAS_data.OperatorIDValid = 1;
+		break;
+
+	case 0xf0:
+		decodeMessagePack(&UAS_data, encoded_data);
+		break;
+	}
+
+	/* JSON */
+
+	sprintf(json, "{ \"mac\" : \"%02x:%02x:%02x:%02x:%02x:%02x\"",
+			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	//write_json(json);
+
+#if 1
+	sprintf(json, ", \"rssi\" : %d", rssi);
+	//write_json(json);
+#endif
+
+#if 0
+  sprintf(json,", \"debug\" : \"%d | ",length);
+  //write_json(json);
+
+  for (i = 0; i < 16; ++i) {
+
+    sprintf(json,"%02x ",payload[i]);
+    //write_json(json);
+  }
+
+  //write_json("\"");
+#endif
+
+	if (UAS_data.OperatorIDValid)
+	{
+
+		sprintf(json, ", \"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
+		//write_json(json);
+
+		memcpy(&RID_data[RID_index].odid_data.OperatorID, &UAS_data.OperatorID, sizeof(ODID_OperatorID_data));
+		//displayidentifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
+	}
+
+	for (j = 0; j < ODID_BASIC_ID_MAX_MESSAGES; ++j)
+	{
+
+		if (UAS_data.BasicIDValid[j])
+		{
+
+			memcpy(&RID_data[RID_index].odid_data.BasicID[j], &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
+
+			switch (UAS_data.BasicID[j].IDType)
+			{
+
+			case ODID_IDTYPE_SERIAL_NUMBER:
+				memcpy(&RID_data[RID_index].basic_serial, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
+				sprintf(json, ", \"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				//write_json(json);
+#if 0
+        //displayidentifier(RID_index + 1,UAS_data.BasicID[j].UASID);
+#endif
+				break;
+
+			case ODID_IDTYPE_CAA_REGISTRATION_ID:
+				memcpy(&RID_data[RID_index].basic_caa_reg, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
+				sprintf(json, ", \"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				//write_json(json);
+				//displayidentifier(RID_index + 1, UAS_data.BasicID[j].UASID);
+				break;
+
+			case ODID_IDTYPE_NONE:
+			default:
+				break;
+			}
+		}
+	}
+
+	if (UAS_data.LocationValid)
+	{
+
+		latitude = UAS_data.Location.Latitude;
+		longitude = UAS_data.Location.Longitude;
+		altitude = UAS_data.Location.AltitudeGeo;
+
+		sprintf(json, ", \"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
+				latitude, longitude);
+		//write_json(json);
+		sprintf(json, ", \"uav altitude\" : %d, \"uav heading\" : %d",
+				(int)UAS_data.Location.AltitudeGeo, (int)UAS_data.Location.Direction);
+		//write_json(json);
+#if 0
+    sprintf(json,", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
+           (int) UAS_data.Location.SpeedHorizontal,(int) UAS_data.Location.SpeedVertical);
+    //write_json(json);
+#endif
+		sprintf(json, ", \"uav speed\" : %d, \"seconds\" : %d",
+				(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.TimeStamp);
+		//write_json(json);
+
+		memcpy(&RID_data[RID_index].odid_data.Location, &UAS_data.Location, sizeof(ODID_Location_data));
+
+		//displayuav_loc(RID_index + 1, latitude, longitude, (int)altitude, (int)UAS_data.Location.TimeStamp);
+
+		if ((latitude < RID_data[RID_index].min_lat) || (RID_data[RID_index].min_lat == 0.0))
+		{
+			RID_data[RID_index].min_lat = latitude;
+		}
+
+		if ((latitude > RID_data[RID_index].max_lat) || (RID_data[RID_index].max_lat == 0.0))
+		{
+			RID_data[RID_index].max_lat = latitude;
+		}
+
+		if ((longitude < RID_data[RID_index].min_long) || (RID_data[RID_index].min_long == 0.0))
+		{
+			RID_data[RID_index].min_long = longitude;
+		}
+
+		if ((longitude > RID_data[RID_index].max_long) || (RID_data[RID_index].max_long == 0.0))
+		{
+			RID_data[RID_index].max_long = longitude;
+		}
+
+		if (altitude > INV_ALT)
+		{
+
+			if ((altitude < RID_data[RID_index].min_alt) || (RID_data[RID_index].min_alt == 0.0))
+			{
+				RID_data[RID_index].min_alt = altitude;
+			}
+
+			if ((altitude > RID_data[RID_index].max_alt) || (RID_data[RID_index].max_alt == 0.0))
+			{
+				RID_data[RID_index].max_alt = altitude;
+			}
+		}
+	}
+
+	if (UAS_data.SystemValid)
+	{
+
+		sprintf(json, ", \"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
+				UAS_data.System.OperatorLatitude, UAS_data.System.OperatorLongitude);
+		//write_json(json);
+		sprintf(json, ", \"unix time\" : %lu",
+				((unsigned long int)UAS_data.System.Timestamp) + ID_OD_AUTH_DATUM);
+		//write_json(json);
+
+		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
+
+		//displaytimestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
+	}
+
+	if (UAS_data.SelfIDValid)
+	{
+
+		sprintf(json, ", \"self id\" : \"%s\"", UAS_data.SelfID.Desc);
+		//write_json(json);
+
+		memcpy(&RID_data[RID_index].odid_data.SelfID, &UAS_data.SelfID, sizeof(ODID_SelfID_data));
+	}
+
+	for (page = 0; page < ODID_AUTH_MAX_PAGES; ++page)
+	{
+
+		if (UAS_data.AuthValid[page])
+		{
+
+			if (page == 0)
+			{
+
+				sprintf(json, ", \"unix time (alt)\" : %lu",
+						((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
+				//write_json(json);
+
+				//displaytimestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
+			}
+
+			sprintf(json, ", \"auth page %d\" : { \"text\" : \"%s\"", page,
+					printable_text(UAS_data.Auth[page].AuthData,
+								   (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
+			//write_json(json);
+
+#if 1
+			//write_json(", \"values\" : [");
+
+			for (i = 0; i < ((page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE); ++i)
+			{
+
+				sprintf(json, "%s %d", (i) ? "," : "", UAS_data.Auth[page].AuthData[i]);
+				//write_json(json);
+			}
+
+			//write_json(" ]");
+#endif
+			//write_json(" }");
+
+			memcpy(&RID_data[RID_index].odid_data.Auth[page], &UAS_data.Auth[page], sizeof(ODID_Auth_data));
+		}
+	}
+
+#if VERIFY
+	authenticated = parse_auth(&UAS_data, encoded_data, &RID_data[RID_index]);
+	//displaypass(RID_index + 1, (authenticated) ? pass_s : "    ");
+#endif
+
+	//write_json(" }\n");
+
+	/* */
+
+#if 0
+  for (i = 0; (i < length)&&(i < 16); ++i) {
+
+    fprintf(stderr,"%02x ",payload[i]);
+  }
+  
+  fprintf(stderr,"%s\n",printable_text(payload,16));
+#endif
+
+	return;
+}
+
+void advert_odid(evt_le_meta_event *event, int *adverts)
+{
+	int i, offset = 1;
+	char address[18];
+	le_advertising_info *advert;
+	uint8_t mac[6];
+
+	for (i = 0, offset = 1; i < event->data[0]; ++i)
+	{
+
+		memset(mac, 0, sizeof(mac));
+		advert = (le_advertising_info *)&event->data[offset];
+
+		ba2str(&advert->bdaddr, address);
+		sscanf(address, "%02hhX:%02hhX:%02hhX:%02hhX:%02hhX:%02hhX",
+			   &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+
+		const int odid_offset = 5;
+
+		if ((advert->data[4] == 0x0d) &&
+			(advert->data[2] == 0xfa) &&
+			(advert->data[3] == 0xff))
+		{
+			++(*adverts);
+			parse_odid(mac, &advert->data[odid_offset], advert->length - odid_offset, 0, "BlueZ", NULL);
+		}
+
+		offset += advert->length + 2;
+	}
+}
+
+int parse_bluez_sniffer()
+{
+	int adverts = 0, bytes;
+	uint8_t buffer[HCI_MAX_EVENT_SIZE];
+	evt_le_meta_event *event;
+
+	event = (evt_le_meta_event *)&buffer[HCI_EVENT_HDR_SIZE + 1];
+
+	if ((bytes = read(sniffer, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
+	{
+
+		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
+		{
+			advert_odid(&event, &adverts);
+		}
+		++counter;
+	}
+	return adverts;
+}
+
 int main()
 {
 	int ret, status;
+    //displayinit();
+
 
 	// Get HCI device.
 
@@ -136,88 +497,9 @@ int main()
 		if (kill_program)
 			break;
 
-		len = read(device, buf, sizeof(buf));
-
-		if (len >= HCI_EVENT_HDR_SIZE)
+		if (parse_bluez_sniffer() < 1)
 		{
-			meta_event = (evt_le_meta_event *)(buf + HCI_EVENT_HDR_SIZE + 1);
-			if (meta_event->subevent == EVT_LE_ADVERTISING_REPORT)
-			{
-				uint8_t reports_count = meta_event->data[0];
-				void *offset = meta_event->data + 1;
-				while (reports_count--)
-				{
-					info = (le_advertising_info *)offset;
-
-					if (info->data[2] == 0xFA &&
-						info->data[3] == 0xFF &&
-						info->data[4] == 0x0D)
-					{
-						// Processar os dados do dispositivo com o UUID 0xFFFA e APP 0x0D
-						char addr[18];
-						ba2str(&(info->bdaddr), addr);
-						printf("Dispositivo encontrado com UUID 0xFFFA:\n");
-						printf("Endereço: %s\n", addr);
-						printf("Tipo de mensagem: ");
-
-						// Verificar tipo de mensagem pelo digito mais significativo do message header.
-						switch (info->data[6] & 0xf0)
-						{
-						case 0x00:
-							decodeBasicIDMessage(&UAS_data.BasicID[0], (ODID_BasicID_encoded *)&info->data);
-							UAS_data.BasicIDValid[0] = 1;
-							printf("Basic ID");
-							break;
-
-						case 0x10:
-							decodeLocationMessage(&UAS_data.Location, (ODID_Location_encoded *)&info->data);
-							UAS_data.LocationValid = 1;
-							printf("Location");
-							break;
-
-						case 0x20:
-							// page = info->data & 0x0f;
-							decodeAuthMessage(&UAS_data.Auth[page], (ODID_Auth_encoded *)&info->data);
-							// UAS_data.AuthValid[page] = 1;
-							printf("Auth");
-							break;
-
-						case 0x30:
-							decodeSelfIDMessage(&UAS_data.SelfID, (ODID_SelfID_encoded *)&info->data);
-							UAS_data.SelfIDValid = 1;
-							printf("Self ID");
-							break;
-
-						case 0x40:
-							decodeSystemMessage(&UAS_data.System, (ODID_System_encoded *)&info->data);
-							UAS_data.SystemValid = 1;
-							printf("System Message");
-							break;
-
-						case 0x50:
-							decodeOperatorIDMessage(&UAS_data.OperatorID, (ODID_OperatorID_encoded *)&info->data);
-							UAS_data.OperatorIDValid = 1;
-							printf("Operator ID");
-							break;
-
-						case 0xf0:
-							decodeMessagePack(&UAS_data, encoded_data);
-							printf("Message Pack");
-							break;
-						}
-						printf("\n");
-						printf("Dados: ");
-						for (int i = 0; i < info->length; i++)
-						{
-							printf("%02X ", info->data[i]);
-						}
-						printf("\n");
-						// Aqui vai mandar para json. Os dados já estão decodificados nos respectivos decode, e salvos em UAS_data.
-						// Verificar se estão sendo decodificados corretamente.
-					}
-					offset = info->data + info->length + 2;
-				}
-			}
+			break;
 		}
 	}
 
@@ -236,6 +518,70 @@ int main()
 	}
 
 	hci_close_dev(device);
+	//displayend();
+
+	return 0;
+}
+
+int write_json(char *json)
+{
+
+	int status;
+#if UDP_BUFFER_SIZE
+	static int index = 0;
+	static uint8_t udp_buffer[UDP_BUFFER_SIZE + 2], c;
+#else
+	int l;
+#endif
+
+	if (json_socket > -1)
+	{
+
+#if UDP_BUFFER_SIZE
+		while (*json)
+		{
+
+			udp_buffer[index++] = c = (uint8_t)*json++;
+
+			if ((c == 0x0a) ||
+				(c == 0x0d) ||
+				(index >= UDP_BUFFER_SIZE))
+			{
+
+				udp_buffer[index] = 0;
+
+				if ((status = sendto(json_socket, udp_buffer, index, 0,
+									 (struct sockaddr *)&server, sizeof(server))) < 0)
+				{
+
+					fprintf(stderr, "%s(): %d, %d, %d\n",
+							__func__, index, status, errno);
+				}
+
+				if (index > max_udp_length)
+				{
+					max_udp_length = index;
+				}
+
+				index = 0;
+				break;
+			}
+		}
+#else
+		if ((status = sendto(json_socket, json, l = strlen(json), 0,
+							 (struct sockaddr *)&server, sizeof(server))) < 0)
+		{
+
+			fprintf(stderr, "%s(): %d, %d, %d\n",
+					__func__, l, status, errno);
+		}
+#endif
+	}
+	else
+	{
+
+		fputs(json, stdout);
+	}
 
 	return 0;
 }

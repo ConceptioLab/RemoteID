@@ -15,8 +15,8 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
 
-#include "opendroneid.h"
-#include "opendroneid.c"
+#include "../opendroneid.h"
+#include "../opendroneid.c"
 #include "bluetooth.h"
 #include "print_bt_features.h"
 
