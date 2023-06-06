@@ -406,6 +406,8 @@ int parse_bluez_sniffer()
 
 	event = (evt_le_meta_event *)&buffer[HCI_EVENT_HDR_SIZE + 1];
 
+			printf("irei ler");
+
 	if ((bytes = read(sniffer, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
 	{
 
