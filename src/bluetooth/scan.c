@@ -398,7 +398,7 @@ void advert_odid(evt_le_meta_event *event, int *adverts)
 	}
 }
 
-int parse_bluez_sniffer()
+int parse_bluez_sniffer(int device)
 {
 	int adverts = 0, bytes;
 	uint8_t buffer[HCI_MAX_EVENT_SIZE];
@@ -408,7 +408,7 @@ int parse_bluez_sniffer()
 
 			printf("irei ler");
 
-	if ((bytes = read(sniffer, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
+	if ((bytes = read(device, buffer, sizeof(buffer))) > HCI_EVENT_HDR_SIZE)
 	{
 
 		if (event->subevent == EVT_LE_ADVERTISING_REPORT)
@@ -527,7 +527,7 @@ int main()
 		if (kill_program)
 			break;
 
-		parse_bluez_sniffer();
+		parse_bluez_sniffer(device);
 	}
 
 	// Disable scanning.
