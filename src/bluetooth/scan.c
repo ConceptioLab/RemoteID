@@ -350,7 +350,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 #endif
 
 	write_json(" }\n");
-    printf("%s\n", json);
+	printf("%s\n", json);
 
 	/* */
 
@@ -389,6 +389,7 @@ void advert_odid(evt_le_meta_event *event, int *adverts)
 			(advert->data[2] == 0xfa) &&
 			(advert->data[3] == 0xff))
 		{
+			printf("%s\n", address);
 			++(*adverts);
 			parse_odid(mac, &advert->data[odid_offset], advert->length - odid_offset, 0, "BlueZ", NULL);
 		}
@@ -545,8 +546,6 @@ int main()
 
 	return 0;
 }
-
-#define UDP_BUFFER_SIZE 800 // Should really be 500, but we can get close to 500 with packed messages.
 
 int write_json(char *json)
 {
