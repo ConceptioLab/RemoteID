@@ -18,6 +18,7 @@
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
 #include "../include/cJSON/cJSON.h"
+#include "../include/cJSON/cJSON.c"
 
 #include "scan.h"
 
@@ -63,7 +64,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 {
 
 	int i, j, RID_index, page, authenticated;
-	char json[500], string[100];
+	char json[1000], string[200], macAddress[18];
 	uint8_t counter, index;
 	double latitude, longitude, altitude;
 	ODID_UAS_Data UAS_data;
@@ -146,9 +147,9 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	/* JSON */
 
-	sprintf(json, "{ \"%02x:%02x:%02x:%02x:%02x:%02x\": {",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	write_json(json);
+	/* sprintf(string, "{\"%02x:%02x:%02x:%02x:%02x:%02x\": ",mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	strcat(json, string); */
+	sprintf(macAddress, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 #if 0
 	sprintf(json, ", \"rssi\" : %d", rssi);
@@ -167,6 +168,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
   //write_json("\"");
 #endif
+	sprintf(string, "{");
+	strcat(json, string);
 
 	if (UAS_data.OperatorIDValid)
 	{
@@ -278,7 +281,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.SystemValid)
 	{
 
-		sprintf(string, "\"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
+		sprintf(string, "\"base latitude\" : %11.6f, \"base longitude\" : %11.6f,",
 			UAS_data.System.OperatorLatitude, UAS_data.System.OperatorLongitude);
 		strcat(json, string);
 
@@ -316,13 +319,10 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
-			sprintf(string, "\"auth page %d\" : { \"text\" : \"%s\"", page,
+			sprintf(string, "\"auth page %d\" : {\"text\" : \"%s\"", page,
 				printable_text(UAS_data.Auth[page].AuthData,
 					       (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
 			strcat(json, string);
-
-			write_json(", \"values\" : [");
-
 			for (i = 0; i < ((page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE); ++i)
 			{
 
@@ -330,7 +330,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				strcat(json, string);
 			}
 
-			sprintf(string, " ]  }");
+			sprintf(string, "]}");
 			strcat(json, string);
 
 			memcpy(&RID_data[RID_index].odid_data.Auth[page], &UAS_data.Auth[page], sizeof(ODID_Auth_data));
@@ -342,9 +342,9 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
-	sprintf(string, " }  }");
+	sprintf(string, "}");
 	strcat(json, string);
-	write_json(json);
+	write_json(json, macAddress);
 
 	/* */
 
@@ -540,27 +540,114 @@ int main()
 	return 0;
 }
 
-int write_json(char *json)
+// Adiciona ou atualiza dentro do objeto cJSON
+void addOrUpdate(cJSON *dataObject, const char *key, cJSON *value)
 {
-	int status;
-#if UDP_BUFFER_SIZE
-	static int index = 0;
-	static uint8_t udp_buffer[UDP_BUFFER_SIZE + 2], c;
-#else
-	int l;
-#endif
+	/* cJSON *existingData = cJSON_GetObjectItemCaseSensitive(dataObject, key);
+	if (existingData != NULL)
+	{
+		cJSON_ReplaceItemInObjectCaseSensitive(dataObject, key, cJSON_Duplicate(value, 1));
+	}
+	else
+	{
+		cJSON_AddItemToObject(dataObject, key, cJSON_Duplicate(value, 1));
+	} */
+	cJSON *existingData = cJSON_GetObjectItemCaseSensitive(dataObject, key);
+	if (existingData != NULL && cJSON_IsObject(existingData))
+	{
+		// Atualizar os valores correspondentes dentro do objeto existente
+		cJSON *rootItem = cJSON_GetObjectItemCaseSensitive(value, key);
+		if (cJSON_IsObject(rootItem))
+		{
+			cJSON *existingItem = cJSON_GetObjectItemCaseSensitive(existingData, key);
+			cJSON_DeleteItemFromObject(existingData, key);
+			cJSON_AddItemToObject(existingData, key, cJSON_Duplicate(rootItem, 1));
+		}
+	}
+	else
+	{
+		// Adicionar novo par chave-valor ao objeto cJSON
+		cJSON_AddItemToObject(dataObject, key, cJSON_Duplicate(value, 1));
+	}
+}
+
+// Prepara o arquivo json
+int write_json(char *json, char *macAddress)
+{
+	// Ler dados recebidos
 	cJSON *root = cJSON_Parse(json);
-	char *formattedJson = cJSON_Print(root);
+	if (root == NULL)
+	{
+		return 1;
+	}
 
-	FILE *file = fopen("dados.json", "w");
+	FILE *file = fopen("dados.json", "r");
+	cJSON *dataObject = NULL;
 
-	fputs(formattedJson, file);
-	fclose(file);
-	printf("%s\n", json);
+	if (file != NULL)
+	{
+		fseek(file, 0, SEEK_END);
+		long fileSize = ftell(file);
+		rewind(file);
 
-	// Limpar memória alocada.
+		char *fileContent = (char *)malloc(fileSize + 1);
+		if (fileContent != NULL)
+		{
+			fread(fileContent, 1, fileSize, file);
+			fileContent[fileSize] = '\0';
+
+			// Criar objeto cJSON a partir do conteúdo do arquivo "dados.json"
+			dataObject = cJSON_Parse(fileContent);
+			free(fileContent);
+
+			if (dataObject == NULL)
+			{
+				printf("Erro ao fazer o parse do conteúdo do arquivo.\n");
+			}
+
+			fclose(file);
+		}
+		else
+		{
+			printf("Erro ao alocar memória para o conteúdo do arquivo.\n");
+			fclose(file);
+			cJSON_Delete(root);
+			return 1;
+		}
+	}
+
+	if (dataObject == NULL)
+	{
+		// O arquivo não existe ou não foi possível fazer o parse, criar um novo objeto cJSON
+		dataObject = cJSON_CreateObject();
+		if (dataObject == NULL)
+		{
+			printf("Erro ao criar objeto cJSON.\n");
+			cJSON_Delete(root);
+			return 1;
+		}
+	}
+
+	// Verificar se o endereço MAC já existe no objeto cJSON
+	addOrUpdate(dataObject, macAddress, root);
+
+	file = fopen("dados.json", "w");
+	if (file != NULL)
+	{
+		char *formattedJson = cJSON_Print(dataObject);
+		fputs(formattedJson, file);
+		fclose(file);
+		printf("%s\n", json);
+		free(formattedJson);
+	}
+	else
+	{
+		printf("Erro ao abrir o arquivo para escrita.\n");
+	}
+
+	cJSON_Delete(dataObject);
 	cJSON_Delete(root);
-	free(formattedJson);
+
 	return 0;
 }
 
