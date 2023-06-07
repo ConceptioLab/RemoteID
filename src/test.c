@@ -3,10 +3,6 @@
 #include "./include/cJSON/cJSON.h"
 #include "./include/cJSON/cJSON.c"
 
-#define MERGE 1
-#define EXTRACT 1
-
-#if MERGE
 void addOrUpdateAttribute(cJSON *object, const char *key, cJSON *value)
 {
         cJSON *existingAttribute = cJSON_GetObjectItemCaseSensitive(object, key);
@@ -42,9 +38,7 @@ void addOrUpdate(cJSON *dataObject, const char *key, cJSON *newObject)
                 cJSON_AddItemToObject(dataObject, key, newObject);
         }
 }
-#endif
 
-#if EXTRACT
 cJSON *extractObjectFromString(const char *jsonString, const char *key)
 {
         cJSON *root = cJSON_Parse(jsonString);
@@ -70,6 +64,11 @@ cJSON *extractObjectFromString(const char *jsonString, const char *key)
 
         return object;
 }
+
+//Primeiro:     Ler e separar MAC dos atributos.
+//Segundo:      Criar objeto com o MAC e os atributos novos.
+//Terceiro:     Adicionar ou atualizar o MAC com a string recebida.
+//Quarto:       Salvar no arquivo.
 
 int main()
 {
@@ -144,4 +143,3 @@ int main()
 
         return 0;
 }
-#endif
