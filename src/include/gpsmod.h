@@ -1,4 +1,3 @@
-
 #ifndef _GPSMOD_H_
 #define _GPSMOD_H_
 

@@ -17,6 +17,8 @@
 
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
+#include "../include/cJSON/cJSON.h"
+
 #include "scan.h"
 
 #define DEBUG_FILE 1
@@ -61,7 +63,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 {
 
 	int i, j, RID_index, page, authenticated;
-	char json[128];
+	char json[500], string[100];
 	uint8_t counter, index;
 	double latitude, longitude, altitude;
 	ODID_UAS_Data UAS_data;
@@ -169,8 +171,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.OperatorIDValid)
 	{
 
-		sprintf(json, "\"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
-		write_json(json);
+		sprintf(string, "\"operator\" : \"%s\"", UAS_data.OperatorID.OperatorId);
+		strcat(json, string);
 
 		memcpy(&RID_data[RID_index].odid_data.OperatorID, &UAS_data.OperatorID, sizeof(ODID_OperatorID_data));
 		// display_identifier(RID_index + 1, UAS_data.OperatorID.OperatorId);
@@ -189,8 +191,9 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 			case ODID_IDTYPE_SERIAL_NUMBER:
 				memcpy(&RID_data[RID_index].basic_serial, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
-				sprintf(json, "\"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
-				write_json(json);
+				sprintf(string, "\"uav id\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				strcat(json, string);
+
 #if 0
         //display_identifier(RID_index + 1,UAS_data.BasicID[j].UASID);
 #endif
@@ -198,8 +201,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 			case ODID_IDTYPE_CAA_REGISTRATION_ID:
 				memcpy(&RID_data[RID_index].basic_caa_reg, &UAS_data.BasicID[j], sizeof(ODID_BasicID_data));
-				sprintf(json, "\"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
-				write_json(json);
+				sprintf(string, "\"caa registration\" : \"%s\"", UAS_data.BasicID[j].UASID);
+				strcat(json, string);
 				// display_identifier(RID_index + 1, UAS_data.BasicID[j].UASID);
 				break;
 
@@ -217,20 +220,21 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 		longitude = UAS_data.Location.Longitude;
 		altitude = UAS_data.Location.AltitudeGeo;
 
-		sprintf(json, "\"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
+		sprintf(string, "\"uav latitude\" : %11.6f, \"uav longitude\" : %11.6f",
 			latitude, longitude);
-		write_json(json);
-		sprintf(json, ", \"uav altitude\" : %d, \"uav heading\" : %d",
+		strcat(json, string);
+
+		sprintf(string, ", \"uav altitude\" : %d, \"uav heading\" : %d",
 			(int)UAS_data.Location.AltitudeGeo, (int)UAS_data.Location.Direction);
-		write_json(json);
+		strcat(json, string);
 
-		sprintf(json, ", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
+		sprintf(string, ", \"uav speed horizontal\" : %d, \"uav speed vertical\" : %d",
 			(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.SpeedVertical);
-		write_json(json);
+		strcat(json, string);
 
-		sprintf(json, ", \"uav speed\" : %d, \"seconds\" : %d",
+		sprintf(string, ", \"uav speed\" : %d, \"seconds\" : %d",
 			(int)UAS_data.Location.SpeedHorizontal, (int)UAS_data.Location.TimeStamp);
-		write_json(json);
+		strcat(json, string);
 
 		memcpy(&RID_data[RID_index].odid_data.Location, &UAS_data.Location, sizeof(ODID_Location_data));
 
@@ -274,12 +278,13 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.SystemValid)
 	{
 
-		sprintf(json, "\"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
+		sprintf(string, "\"base latitude\" : %11.6f, \"base longitude\" : %11.6f",
 			UAS_data.System.OperatorLatitude, UAS_data.System.OperatorLongitude);
-		write_json(json);
-		sprintf(json, "\"unix time\" : %lu",
+		strcat(json, string);
+
+		sprintf(string, "\"unix time\" : %lu",
 			((unsigned long int)UAS_data.System.Timestamp) + ID_OD_AUTH_DATUM);
-		write_json(json);
+		strcat(json, string);
 
 		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
 
@@ -289,8 +294,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	if (UAS_data.SelfIDValid)
 	{
 
-		sprintf(json, "\"self id\" : \"%s\"", UAS_data.SelfID.Desc);
-		write_json(json);
+		sprintf(string, "\"self id\" : \"%s\"", UAS_data.SelfID.Desc);
+		strcat(json, string);
 
 		memcpy(&RID_data[RID_index].odid_data.SelfID, &UAS_data.SelfID, sizeof(ODID_SelfID_data));
 	}
@@ -304,28 +309,29 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 			if (page == 0)
 			{
 
-				sprintf(json, "\"unix time (alt)\" : %lu, ",
+				sprintf(string, "\"unix time (alt)\" : %lu, ",
 					((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
-				write_json(json);
+				strcat(json, string);
 
 				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
-			sprintf(json, "\"auth page %d\" : { \"text\" : \"%s\"", page,
+			sprintf(string, "\"auth page %d\" : { \"text\" : \"%s\"", page,
 				printable_text(UAS_data.Auth[page].AuthData,
 					       (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
-			write_json(json);
+			strcat(json, string);
 
 			write_json(", \"values\" : [");
 
 			for (i = 0; i < ((page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE); ++i)
 			{
 
-				sprintf(json, "%s %d", (i) ? "," : "", UAS_data.Auth[page].AuthData[i]);
-				write_json(json);
+				sprintf(string, "%s %d", (i) ? "," : "", UAS_data.Auth[page].AuthData[i]);
+				strcat(json, string);
 			}
 
-			write_json(" ]  }");
+			sprintf(string, " ]  }");
+			strcat(json, string);
 
 			memcpy(&RID_data[RID_index].odid_data.Auth[page], &UAS_data.Auth[page], sizeof(ODID_Auth_data));
 		}
@@ -336,7 +342,9 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
-	write_json(" }  }\n");
+	sprintf(string, " }  }");
+	strcat(json, string);
+	write_json(json);
 
 	/* */
 
@@ -534,7 +542,6 @@ int main()
 
 int write_json(char *json)
 {
-
 	int status;
 #if UDP_BUFFER_SIZE
 	static int index = 0;
@@ -542,23 +549,18 @@ int write_json(char *json)
 #else
 	int l;
 #endif
+	cJSON *root = cJSON_Parse(json);
+	char *formattedJson = cJSON_Print(root);
 
-	if (json_socket > -1)
-	{
-		if ((status = sendto(json_socket, json, l = strlen(json), 0,
-				     (struct sockaddr *)&server, sizeof(server))) < 0)
-		{
+	FILE *file = fopen("dados.json", "w");
 
-			fprintf(stderr, "%s(): %d, %d, %d\n",
-				__func__, l, status, errno);
-		}
-	}
-	else
-	{
+	fputs(formattedJson, file);
+	fclose(file);
+	printf("%s\n", json);
 
-		fputs(json, stdout);
-	}
-
+	// Limpar memória alocada.
+	cJSON_Delete(root);
+	free(formattedJson);
 	return 0;
 }
 

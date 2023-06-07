@@ -1,4 +1,3 @@
-
 #include "gpsmod.h"
 #include "opendroneid.h"
 #include <math.h>
