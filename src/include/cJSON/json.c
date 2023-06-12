@@ -107,7 +107,6 @@ cJSON *parseJsonFromFile(const char *filename)
 void parse_json(char *newJson, char *macAddress)
 {
         const char *filename = "dados.json";
-        FILE *file = fopen(filename, "w");
         char *formattedJson;
 
         cJSON *jsonObject = parseJsonFromFile(filename);
@@ -144,6 +143,7 @@ void parse_json(char *newJson, char *macAddress)
                 }
 
                 // Imprimir o JSON resultante
+                FILE *file = fopen(filename, "w");
                 formattedJson = cJSON_Print(mainObject);
 
                 fputs(formattedJson, file);
@@ -152,6 +152,8 @@ void parse_json(char *newJson, char *macAddress)
                 // Liberar a memória
                 cJSON_Delete(mainObject);
                 cJSON_Delete(newObject);
+                free(formattedJson);
+                fclose(file);
         }
         else
         {
@@ -163,7 +165,7 @@ void parse_json(char *newJson, char *macAddress)
                 }
                 cJSON *newObject = cJSON_Parse(newJson);
                 addOrUpdate(dataObject, macAddress, newObject);
-
+                FILE *file = fopen(filename, "w");
                 if (file != NULL)
                 {
                         formattedJson = cJSON_Print(dataObject);
@@ -176,7 +178,7 @@ void parse_json(char *newJson, char *macAddress)
                         printf("Erro ao abrir o arquivo para escrita.\n");
                 }
                 cJSON_Delete(newObject);
+                free(formattedJson);
+                fclose(file);
         }
-        free(formattedJson);
-        fclose(file);
 }
