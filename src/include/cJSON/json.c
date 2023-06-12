@@ -119,7 +119,6 @@ void parse_json(char *newJson, char *macAddress)
                 if (desiredObject != NULL)
                 {
                         formattedJson = cJSON_Print(desiredObject);
-                        printf("Objeto separado:\n%s\n", formattedJson);
                 }
 
                 // Converter as strings em objetos cJSON
@@ -145,7 +144,7 @@ void parse_json(char *newJson, char *macAddress)
                 }
 
                 // Imprimir o JSON resultante
-                char *formattedJson = cJSON_Print(mainObject);
+                formattedJson = cJSON_Print(mainObject);
 
                 fputs(formattedJson, file);
 
@@ -153,7 +152,6 @@ void parse_json(char *newJson, char *macAddress)
                 // Liberar a memória
                 cJSON_Delete(mainObject);
                 cJSON_Delete(newObject);
-                free(formattedJson);
         }
         else
         {
@@ -172,7 +170,6 @@ void parse_json(char *newJson, char *macAddress)
                         fputs(formattedJson, file);
                         fclose(file);
                         printf("%s\n", formattedJson);
-                        free(formattedJson);
                 }
                 else
                 {
@@ -180,5 +177,6 @@ void parse_json(char *newJson, char *macAddress)
                 }
                 cJSON_Delete(newObject);
         }
+        free(formattedJson);
         fclose(file);
 }
