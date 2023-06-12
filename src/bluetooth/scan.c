@@ -17,8 +17,6 @@
 
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
-#include "../include/cJSON/cJSON.h"
-#include "../include/cJSON/cJSON.c"
 #include "../include/cJSON/json.c"
 
 #include "scan.h"
@@ -539,37 +537,6 @@ int main()
 	// display_end();
 
 	return 0;
-}
-
-// Adiciona ou atualiza dentro do objeto cJSON
-void addOrUpdate(cJSON *dataObject, const char *key, cJSON *value)
-{
-	/* cJSON *existingData = cJSON_GetObjectItemCaseSensitive(dataObject, key);
-	if (existingData != NULL)
-	{
-		cJSON_ReplaceItemInObjectCaseSensitive(dataObject, key, cJSON_Duplicate(value, 1));
-	}
-	else
-	{
-		cJSON_AddItemToObject(dataObject, key, cJSON_Duplicate(value, 1));
-	} */
-	cJSON *existingData = cJSON_GetObjectItemCaseSensitive(dataObject, key);
-	if (existingData != NULL && cJSON_IsObject(existingData))
-	{
-		// Atualizar os valores correspondentes dentro do objeto existente
-		cJSON *rootItem = cJSON_GetObjectItemCaseSensitive(value, key);
-		if (cJSON_IsObject(rootItem))
-		{
-			cJSON *existingItem = cJSON_GetObjectItemCaseSensitive(existingData, key);
-			cJSON_DeleteItemFromObject(existingData, key);
-			cJSON_AddItemToObject(existingData, key, cJSON_Duplicate(rootItem, 1));
-		}
-	}
-	else
-	{
-		// Adicionar novo par chave-valor ao objeto cJSON
-		cJSON_AddItemToObject(dataObject, key, cJSON_Duplicate(value, 1));
-	}
 }
 
 // Prepara o arquivo json
