@@ -19,6 +19,7 @@
 #include "../include/opendroneid.c"
 #include "../include/cJSON/cJSON.h"
 #include "../include/cJSON/cJSON.c"
+#include "../include/cJSON/json.c"
 
 #include "scan.h"
 
@@ -574,79 +575,7 @@ void addOrUpdate(cJSON *dataObject, const char *key, cJSON *value)
 // Prepara o arquivo json
 int write_json(char *json, char *macAddress)
 {
-	// Ler dados recebidos
-	cJSON *root = cJSON_Parse(json);
-	if (root == NULL)
-	{
-		return 1;
-	}
-
-	FILE *file = fopen("dados.json", "r");
-	cJSON *dataObject = NULL;
-
-	if (file != NULL)
-	{
-		fseek(file, 0, SEEK_END);
-		long fileSize = ftell(file);
-		rewind(file);
-
-		char *fileContent = (char *)malloc(fileSize + 1);
-		if (fileContent != NULL)
-		{
-			fread(fileContent, 1, fileSize, file);
-			fileContent[fileSize] = '\0';
-
-			// Criar objeto cJSON a partir do conteúdo do arquivo "dados.json"
-			dataObject = cJSON_Parse(fileContent);
-			free(fileContent);
-
-			if (dataObject == NULL)
-			{
-				printf("Erro ao fazer o parse do conteúdo do arquivo.\n");
-			}
-
-			fclose(file);
-		}
-		else
-		{
-			printf("Erro ao alocar memória para o conteúdo do arquivo.\n");
-			fclose(file);
-			cJSON_Delete(root);
-			return 1;
-		}
-	}
-
-	if (dataObject == NULL)
-	{
-		// O arquivo não existe ou não foi possível fazer o parse, criar um novo objeto cJSON
-		dataObject = cJSON_CreateObject();
-		if (dataObject == NULL)
-		{
-			printf("Erro ao criar objeto cJSON.\n");
-			cJSON_Delete(root);
-			return 1;
-		}
-	}
-
-	// Verificar se o endereço MAC já existe no objeto cJSON
-	addOrUpdate(dataObject, macAddress, root);
-
-	file = fopen("dados.json", "w");
-	if (file != NULL)
-	{
-		char *formattedJson = cJSON_Print(dataObject);
-		fputs(formattedJson, file);
-		fclose(file);
-		printf("%s\n", json);
-		free(formattedJson);
-	}
-	else
-	{
-		printf("Erro ao abrir o arquivo para escrita.\n");
-	}
-
-	cJSON_Delete(dataObject);
-	cJSON_Delete(root);
+	parse_json(json, macAddress);
 
 	return 0;
 }

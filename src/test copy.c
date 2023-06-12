@@ -65,10 +65,10 @@ cJSON *extractObjectFromString(const char *jsonString, const char *key)
         return object;
 }
 
-//Primeiro:     Ler e separar MAC dos atributos.
-//Segundo:      Criar objeto com o MAC e os atributos novos.
-//Terceiro:     Adicionar ou atualizar o MAC com a string recebida.
-//Quarto:       Salvar no arquivo.
+// Primeiro:     Ler e separar MAC dos atributos.
+// Segundo:      Criar objeto com o MAC e os atributos novos.
+// Terceiro:     Adicionar ou atualizar o MAC com a string recebida.
+// Quarto:       Salvar no arquivo.
 
 int main()
 {
@@ -84,7 +84,7 @@ int main()
         // Exemplo de objetos JSON em formato de string
         const char *objectString1 = "{\"atributo1\":\"valor1\",\"atributo2\":123}";
         const char *objectString2 = "{\"atributo2\":456,\"atributo3\":\"valor3\"}";
-        const char *objectString3 = "{\"atributo1\":\"novo_valor\",\"atributo4\":true}";
+        const char *objectString3 = "{\"atributo2\":\"novo_valor\",\"atributo1\":true}";
 
         // Converter as strings em objetos cJSON
         cJSON *newObject1 = cJSON_Parse(objectString1);
@@ -93,8 +93,8 @@ int main()
 
         // Adicionar os objetos ao objeto principal
         addOrUpdate(dataObject, "key1", newObject1);
-        addOrUpdate(dataObject, "key1", newObject2);
-        addOrUpdate(dataObject, "key2", newObject3);
+        addOrUpdate(dataObject, "key2", newObject2);
+        addOrUpdate(dataObject, "key1", newObject3);
 
         // Verificar os atributos dinamicamente e substituir os valores correspondentes
         cJSON *object = NULL;
