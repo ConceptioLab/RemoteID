@@ -70,6 +70,58 @@ cJSON *extractObjectFromString(const char *jsonString, const char *key)
 // Terceiro:     Adicionar ou atualizar o MAC com a string recebida.
 // Quarto:       Salvar no arquivo.
 
+cJSON *readJsonFromFile(const char *filename)
+{
+    FILE *file = fopen(filename, "r");
+    if (file == NULL)
+    {
+        printf("Erro ao abrir o arquivo '%s'.\n", filename);
+        return NULL;
+    }
+
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    rewind(file);
+
+    char *buffer = (char *)malloc((fileSize + 1) * sizeof(char));
+    if (buffer == NULL)
+    {
+        printf("Erro ao alocar memória para o buffer.\n");
+        fclose(file);
+        return NULL;
+    }
+
+    size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+    if (bytesRead < fileSize)
+    {
+        printf("Erro ao ler o arquivo '%s'.\n", filename);
+        fclose(file);
+        free(buffer);
+        return NULL;
+    }
+
+    buffer[fileSize] = '\0';
+
+    fclose(file);
+
+    cJSON *jsonObject = cJSON_Parse(buffer);
+    free(buffer);
+
+    if (jsonObject == NULL)
+    {
+        printf("Erro ao fazer o parse do arquivo JSON.\n");
+        return NULL;
+    }
+
+    return jsonObject;
+}
+
+// Receber string json a ser adicionada em mac
+// Transformar em objeto cJSON
+// addOrUpdate do objeto principal
+// verifica o array
+// Salva
+
 int main()
 {
 

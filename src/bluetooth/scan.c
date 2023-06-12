@@ -343,7 +343,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	sprintf(string, "}");
 	strcat(json, string);
-	write_json(json, macAddress);
+	updateJsonData("dados.json", json, macAddress);
 
 	/* */
 
@@ -535,14 +535,6 @@ int main()
 
 	hci_close_dev(device);
 	// display_end();
-
-	return 0;
-}
-
-// Prepara o arquivo json
-int write_json(char *json, char *macAddress)
-{
-	parse_json(json, macAddress);
 
 	return 0;
 }
