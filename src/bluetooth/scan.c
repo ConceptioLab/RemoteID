@@ -541,30 +541,6 @@ int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
 	return RID_index;
 }
 
-void dump(char *name, uint8_t *data, int len)
-{
-
-	int i;
-
-	if (debug_file)
-	{
-
-		fprintf(debug_file, "%s[] = {", name);
-
-		for (i = 0; i < len; ++i)
-		{
-
-			fprintf(debug_file, "%s 0x%02x", (i) ? "," : "", data[i]);
-		}
-
-		fprintf(debug_file, " };\n%s_s = \"%s\";\n", name, printable_text(data, len));
-
-		fflush(debug_file);
-	}
-
-	return;
-}
-
 char *printable_text(uint8_t *data, int len)
 {
 
