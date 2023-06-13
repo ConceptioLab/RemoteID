@@ -21,8 +21,6 @@
 
 #include "scan.h"
 
-#define DEBUG_FILE 1
-
 static bool kill_program = false;
 static int sniffer = -1, json_socket = -1, max_udp_length = 0;
 static uint32_t counter = 1;
@@ -63,7 +61,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 {
 
 	int i, j, RID_index, page, authenticated;
-	char json[1000] = "", string[200], macAddress[18];
+	char json[500] = "", string[200], macAddress[18];
 	uint8_t counter, index;
 	double latitude, longitude, altitude;
 	ODID_UAS_Data UAS_data;
@@ -455,12 +453,6 @@ int main()
 		perror("Failed to enable scan.");
 		return 0;
 	}
-
-#if DEBUG_FILE
-	sprintf(text, "%s/%s", log_dir, debug_filename);
-	debug_file = fopen(text, "w");
-	chmod(text, file_mode);
-#endif
 
 	// Get Results.
 	struct hci_filter nf;
