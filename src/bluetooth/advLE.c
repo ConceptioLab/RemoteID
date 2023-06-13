@@ -172,34 +172,6 @@ static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
     uasData->Location.TimeStamp = 360.52f;
 }
 
-// Ativa o bluetooth para envio.
-static int open_hci_device()
-{
-    struct hci_filter flt; // Host Controller Interface filter
-
-    int dev_id = hci_devid("hci0");
-    if (dev_id < 0)
-        dev_id = hci_get_route(NULL);
-
-    int dd = hci_open_dev(dev_id);
-    if (dd < 0)
-    {
-        perror("Device open failed");
-        exit(EXIT_FAILURE);
-    }
-
-    hci_filter_clear(&flt);
-    hci_filter_set_ptype(HCI_EVENT_PKT, &flt);
-    hci_filter_all_events(&flt);
-
-    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0)
-    {
-        perror("HCI filter setup failed");
-        exit(EXIT_FAILURE);
-    }
-    return dd;
-}
-
 // Envia um comando de baixo nivel direto ao adaptador
 static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int length)
 {
@@ -238,11 +210,6 @@ static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int l
         memcpy(rparam, ptr, len);
         if (rparam[0] && ocf != 0x3C)
             printf("Command 0x%X returned error 0x%X\n", ocf, rparam[0]);
-        /* if (ocf == OCF_LE_READ_LOCAL_SUPPORTED_FEATURES)
-        {
-            printf("Supported Low Energy Bluetooth features:\n");
-            print_bt_le_features(&rparam[1]);
-        } */
         if (ocf == 0x36)
             printf("The transmit power is set to %d dBm\n", (unsigned char)rparam[1]);
         fflush(stdout);
@@ -443,14 +410,60 @@ static void stop_transmit()
     hci_le_set_advertising_disable(device_descriptor);
 }
 
+// Ativa o bluetooth para envio.
+static int open_hci_device()
+{
+    struct hci_filter flt; // Host Controller Interface filter
+    uint8_t mac[6] = {0};
+
+    int dev_id = hci_devid("hci0");
+    if (dev_id < 0)
+        dev_id = hci_get_route(NULL);
+
+    int dd = hci_open_dev(dev_id);
+    if (dd < 0)
+    {
+        perror("Device open failed");
+        exit(EXIT_FAILURE);
+    }
+
+    hci_filter_clear(&flt);
+    hci_filter_set_ptype(HCI_EVENT_PKT, &flt);
+    hci_filter_all_events(&flt);
+
+    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0)
+    {
+        perror("HCI filter setup failed");
+        exit(EXIT_FAILURE);
+    }
+    return dd;
+}
+
+// Pegar o MAC padrão do dispositivo;
+int get_mac()
+{
+    struct hci_dev_info dev_info;
+    uint8_t mac[6] = {0};
+
+    int dev_id = hci_devid("hci0");
+    if (dev_id < 0)
+        dev_id = hci_get_route(NULL);
+
+    if (hci_devinfo(dev_id, &dev_info) < 0)
+    {
+        perror("Failed to get device info");
+        return 1;
+    }
+    memcpy(mac, &dev_info.bdaddr, sizeof(mac));
+    printMACAddress(mac);
+
+    hci_le_set_random_address(device_descriptor, mac);
+    return 0;
+}
+
 // Inicia bluetooth e parametros do advertising
 void init_bluetooth(struct config_data *config)
 {
-
-
-    uint8_t mac[6] = {0};
-    generate_random_mac_address(mac);
-
     device_descriptor = open_hci_device();
 
     // Parar transmissao LE
@@ -459,9 +472,15 @@ void init_bluetooth(struct config_data *config)
 
     // Configura o LE advertise
     hci_reset(device_descriptor);
-    hci_le_set_advertising_parameters(device_descriptor, 100);
+    get_mac();
+    // Setar MAC aleatório, comente a linha de cima e descomente bloco abaixo.
+    /*
+    uint8_t mac[6] = {0};
+    generate_random_mac_address(mac);
     hci_le_set_random_address(device_descriptor, mac);
-    hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);//Seta random address
+    hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);
+    */
+    hci_le_set_advertising_parameters(device_descriptor, 100);
 
     // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);
@@ -547,9 +566,6 @@ static void sig_handler(int signo)
 int main(int argc, char *argv[])
 {
     parse_command_line(argc, argv, &config);
-
-    source.server = "localhost";
-    source.port = "2947";
 
     struct ODID_UAS_Data uasData;
     odid_initUasData(&uasData);
