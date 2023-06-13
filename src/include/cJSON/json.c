@@ -62,7 +62,7 @@ cJSON *extractObjectFromString(const char *jsonString, const char *key)
     return object;
 }
 
-char *readJsonFromFile(const char *filename)
+cJSON *readJsonFromFile(const char *filename)
 {
     FILE *file = fopen(filename, "r");
     if (file == NULL)
@@ -96,111 +96,89 @@ char *readJsonFromFile(const char *filename)
 
     fclose(file);
 
-    return buffer;
+    cJSON *jsonObject = cJSON_Parse(buffer);
+    free(buffer);
+
+    if (jsonObject == NULL)
+    {
+        printf("Erro ao fazer o parse do arquivo JSON.\n");
+        return NULL;
+    }
+
+    return jsonObject;
 }
 
-int writeJsonToFile(const char *filename, const char *jsonString)
+void save_cjson_object_to_file(const char *filename, cJSON *jsonObject)
 {
+    if (jsonObject == NULL)
+    {
+        printf("Objeto cJSON inválido.\n");
+        return;
+    }
+
+    char *formattedJson = cJSON_Print(jsonObject);
+    if (formattedJson == NULL)
+    {
+        printf("Erro ao formatar o objeto cJSON.\n");
+        return;
+    }
+    printf("%s\n", formattedJson);
+
     FILE *file = fopen(filename, "w");
     if (file == NULL)
     {
-        printf("Erro ao abrir o arquivo '%s' para escrita.\n", filename);
-        return 0;
+        printf("Erro ao abrir o arquivo para escrita: %s\n", filename);
+        free(formattedJson);
+        return;
     }
 
-    size_t bytesWritten = fwrite(jsonString, sizeof(char), strlen(jsonString), file);
+    fputs(formattedJson, file);
     fclose(file);
-
-    if (bytesWritten != strlen(jsonString))
-    {
-        printf("Erro ao escrever no arquivo '%s'.\n", filename);
-        return 0;
-    }
-
-    return 1;
+    free(formattedJson);
 }
 
-int updateJsonData(const char *filename, const char *desiredKey, const char *newObjectString)
+int updateJsonData(char *filename, char *macAddress, char *newObjectString)
 {
     // Ler o JSON do arquivo
-    char *jsonString = readJsonFromFile(filename);
-    if (jsonString == NULL)
+    cJSON *mainObject = readJsonFromFile(filename);
+
+    // Criar objeto cJSON principal
+    if (mainObject == NULL)
     {
-        // Se não for possível ler o arquivo, criar um novo objeto cJSON vazio
-        cJSON *dataObject = cJSON_CreateObject();
-        if (dataObject == NULL)
-        {
-            printf("Erro ao criar objeto cJSON principal.\n");
-            return 1;
-        }
-
-        // Converter o objeto cJSON em string formatada
-        char *formattedJson = NULL;
-
-        // Verificar se a chave desejada já existe no objeto principal
-        cJSON *desiredObject = extractObjectFromString(jsonString, desiredKey);
-        if (desiredObject != NULL)
-        {
-            // Se a chave já existir, mesclar os dados do novo objeto
-            cJSON *newObject = cJSON_Parse(newObjectString);
-            if (newObject == NULL)
-            {
-                printf("Erro ao fazer o parse do novo objeto JSON.\n");
-                free(jsonString);
-                cJSON_Delete(dataObject);
-                return 1;
-            }
-
-            addOrUpdate(desiredObject, desiredKey, newObject);
-            cJSON_Delete(newObject);
-
-            // Atualizar o objeto principal com o objeto modificado
-            addOrUpdate(dataObject, desiredKey, desiredObject);
-            cJSON_Delete(desiredObject);
-
-            // Converter o objeto cJSON em string formatada
-            formattedJson = cJSON_Print(dataObject);
-        }
-        else
-        {
-            // Se a chave não existir, adicionar a nova chave com os valores fornecidos
-            cJSON *newObject = cJSON_Parse(newObjectString);
-            if (newObject == NULL)
-            {
-                printf("Erro ao fazer o parse do novo objeto JSON.\n");
-                free(jsonString);
-                cJSON_Delete(dataObject);
-                return 1;
-            }
-
-            addOrUpdate(dataObject, desiredKey, newObject);
-            cJSON_Delete(newObject);
-
-            // Converter o objeto cJSON em string formatada
-            formattedJson = cJSON_Print(dataObject);
-        }
-
-        // Salvar o JSON atualizado no arquivo
-        int success = writeJsonToFile(filename, formattedJson);
-        if (success)
-        {
-            printf("JSON atualizado e salvo no arquivo '%s'.\n", filename);
-        }
-        else
-        {
-            printf("Erro ao salvar o JSON atualizado no arquivo '%s'.\n", filename);
-        }
-
-        // Liberar a memória
-        cJSON_Delete(dataObject);
-        free(jsonString);
-        free(formattedJson);
+        printf("JSON não existe, criando JSON.\n");
+        mainObject = cJSON_CreateObject();
     }
-    else
+
+    // Criar novo objeto com a string.
+    cJSON *newObject = cJSON_Parse(newObjectString);
+    if (newObject == NULL)
     {
-        printf("Erro ao ler o arquivo JSON '%s'.\n", filename);
+        printf("Erro ao fazer o parse da string JSON.\n");
         return 1;
     }
 
+    // Adicionar os objetos ao objeto principal
+    addOrUpdate(mainObject, macAddress, newObject);
+
+    // Verificar os atributos dinamicamente e substituir os valores correspondentes
+    cJSON *object = NULL;
+    cJSON_ArrayForEach(object, mainObject)
+    {
+        cJSON *attribute = NULL;
+        cJSON_ArrayForEach(attribute, object)
+        {
+            cJSON *existingAttribute = cJSON_GetObjectItemCaseSensitive(mainObject, attribute->string);
+            if (existingAttribute != NULL && cJSON_IsString(existingAttribute) && cJSON_IsString(attribute))
+            {
+                cJSON_ReplaceItemInObjectCaseSensitive(mainObject, attribute->string, cJSON_Duplicate(attribute, 1));
+            }
+        }
+    }
+
+    // Imprimir o JSON resultante
+    save_cjson_object_to_file(filename, mainObject);
+
+    // Liberar a memória
+    cJSON_Delete(mainObject);
     return 0;
 }

@@ -63,7 +63,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 {
 
 	int i, j, RID_index, page, authenticated;
-	char json[1000], string[200], macAddress[18];
+	char json[1000] = "", string[200], macAddress[18];
 	uint8_t counter, index;
 	double latitude, longitude, altitude;
 	ODID_UAS_Data UAS_data;
@@ -145,28 +145,8 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	}
 
 	/* JSON */
-
-	/* sprintf(string, "{\"%02x:%02x:%02x:%02x:%02x:%02x\": ",mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	strcat(json, string); */
 	sprintf(macAddress, "%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-#if 0
-	sprintf(json, ", \"rssi\" : %d", rssi);
-	write_json(json);
-#endif
-
-#if 0
-  sprintf(json,", \"debug\" : \"%d | ",length);
-  //write_json(json);
-
-  for (i = 0; i < 16; ++i) {
-
-    sprintf(json,"%02x ",payload[i]);
-    //write_json(json);
-  }
-
-  //write_json("\"");
-#endif
 	sprintf(string, "{");
 	strcat(json, string);
 
@@ -318,7 +298,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
-			sprintf(string, "\"auth page %d\" : {\"text\" : \"%s\"", page,
+			sprintf(string, "\"auth page %d\" : {\"text\" : \"%s\", \"values\": [", page,
 				printable_text(UAS_data.Auth[page].AuthData,
 					       (page) ? ODID_AUTH_PAGE_NONZERO_DATA_SIZE : ODID_AUTH_PAGE_ZERO_DATA_SIZE));
 			strcat(json, string);
@@ -343,7 +323,7 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 	sprintf(string, "}");
 	strcat(json, string);
-	updateJsonData("dados.json", json, macAddress);
+	updateJsonData("data.json", macAddress, json);
 
 	/* */
 
