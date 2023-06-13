@@ -32,8 +32,6 @@ static char *log_dir = NULL;
 char text[128];
 const mode_t file_mode = 0666;
 
-static const char debug_filename[] = "debug.txt";
-
 static volatile uint32_t odid_packets = 0;
 
 struct hci_request ble_hci_request(uint16_t ocf, int clen, void *status, void *cparam)
@@ -77,30 +75,16 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 	counter = payload[0];
 	index = payload[1] >> 4;
 
-#if 1
 	if (RID_data[RID_index].counter[index] == counter)
 	{
 		return;
 	}
-#endif
 
 	RID_data[RID_index].counter[index] = counter;
 
 	++odid_packets;
 	++RID_data[RID_index].packets;
 	RID_data[RID_index].rssi = rssi;
-
-#if 0
-	if (note)
-	{
-		display_note(RID_index + 1, note);
-	}
-
-	if (volts)
-	{
-		display_voltage(RID_index + 1, *volts);
-	}
-#endif
 	memset(&UAS_data, 0, sizeof(UAS_data));
 
 	switch (payload[1] & 0xf0)
@@ -268,7 +252,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
 
-		// display_timestamp(RID_index + 1, (time_t)UAS_data.System.Timestamp + ID_OD_AUTH_DATUM);
 	}
 
 	if (UAS_data.SelfIDValid)
@@ -293,7 +276,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 					((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
 				strcat(json, string);
 
-				// display_timestamp(RID_index + 1, (time_t)UAS_data.Auth[page].Timestamp + ID_OD_AUTH_DATUM);
 			}
 
 			sprintf(string, "\"auth page %d\" : {\"text\" : \"%s\", \"values\": [", page,
@@ -316,23 +298,11 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 
 #if VERIFY
 	authenticated = parse_auth(&UAS_data, encoded_data, &RID_data[RID_index]);
-	// display_pass(RID_index + 1, (authenticated) ? pass_s : "    ");
 #endif
 
 	sprintf(string, "}");
 	strcat(json, string);
 	updateJsonData("data.json", macAddress, json);
-
-	/* */
-
-#if 0
-  for (i = 0; (i < length)&&(i < 16); ++i) {
-
-    fprintf(stderr,"%02x ",payload[i]);
-  }
-  
-  fprintf(stderr,"%s\n",printable_text(payload,16));
-#endif
 
 	return;
 }
@@ -390,7 +360,6 @@ int parse_bluez_sniffer(int device)
 int main()
 {
 	int ret, status;
-	// display_init();
 
 	// Get HCI device.
 	const int device = hci_open_dev(hci_get_route(NULL));
@@ -492,7 +461,6 @@ int main()
 	}
 
 	// Disable scanning.
-
 	memset(&scan_cp, 0, sizeof(scan_cp));
 	scan_cp.enable = 0x00; // Disable flag.
 
@@ -506,7 +474,6 @@ int main()
 	}
 
 	hci_close_dev(device);
-	// display_end();
 
 	return 0;
 }
@@ -554,7 +521,6 @@ int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
 		sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-		// display__mac(oldest + 1, mac);
 
 		fprintf(stderr, " - using RID record %d\n", oldest);
 
