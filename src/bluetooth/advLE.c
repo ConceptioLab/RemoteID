@@ -447,16 +447,16 @@ static void stop_transmit()
 void init_bluetooth(struct config_data *config)
 {
 
+
     uint8_t mac[6] = {0};
     generate_random_mac_address(mac);
 
     device_descriptor = open_hci_device();
-    hci_reset(device_descriptor);
-    // stoptransmit
 
     // Parar transmissao LE
     hci_le_set_advertising_disable(device_descriptor);
     hci_le_read_local_supported_features(device_descriptor);
+
     // Configura o LE advertise
     hci_reset(device_descriptor);
     hci_le_set_advertising_parameters(device_descriptor, 100);
