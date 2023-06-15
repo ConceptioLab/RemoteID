@@ -537,7 +537,6 @@ void advertise_le()
     while (i < 50)
     {
         send_single_messages(&uasData, &config);
-        printf("%d", i);
         i++;
     }
 

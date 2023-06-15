@@ -4,6 +4,8 @@
 
 #include "scan.h"
 
+bool kill_program = false;
+
 static void parse_command_line(int argc, char *argv[], struct config_data *config)
 {
         if (argc == 1)
@@ -90,7 +92,10 @@ int main(int argc, char *argv[])
 
                 // Ends GPS thread
                 int *ptr;
-                pthread_join(gps_thread, (void **)&ptr);
+                pthread_join(gps_thread, (void **)ptr);
+                gps_stream(args.gpsdata , WATCH_DISABLE, NULL);
+
+                pthread_exit(0);
                 gps_close(&gpsdata);
         }
         else
@@ -103,7 +108,7 @@ int main(int argc, char *argv[])
                         advertise_le();
                         while (i < 25)
                         {
-                                printf("%d",i);
+                                printf("%d", i);
                                 i++;
                         }
                         i = 0;

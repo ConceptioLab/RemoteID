@@ -2,6 +2,13 @@
 #include "../include/utils.h"
 #include <pthread.h>
 
+#ifndef GLOBAL_VARIABLE_H
+#define GLOBAL_VARIABLE_H
+
+extern bool kill_program;
+
+#endif
+
 
 #define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
 
@@ -11,7 +18,6 @@
 #define ODID_MESSAGE_SIZE 25
 
 static struct config_data config = {0};
-static bool kill_program = false;
 
 static struct fixsource_t source;
 static struct gps_data_t gpsdata;
