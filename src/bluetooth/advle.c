@@ -1,51 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <time.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <signal.h>
-#include <sys/param.h>
-#include <sys/resource.h>
-#include "../include/gpsmod.c"
-
-#include <bluetooth/bluetooth.h>
-#include <bluetooth/hci.h>
-#include <bluetooth/hci_lib.h>
-
-#include "../include/opendroneid.h"
-#include "../include/opendroneid.c"
-#include "bluetooth.h"
-#include "print_bt_features.h"
-
-sem_t semaphore;
-pthread_t id, gps_thread;
-
-#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
-
-#define BASIC_ID_POS_ZERO 0
-#define BASIC_ID_POS_ONE 1
-
-#define ODID_MESSAGE_SIZE 25
-
-int first = 1;
-
-int device_descriptor = 0;
-
-static struct config_data config = {0};
-static bool kill_program = false;
-
-static struct fixsource_t source;
-static struct gps_data_t gpsdata;
-
-struct gps_loop_args
-{
-    struct gps_data_t *gpsdata;
-    struct ODID_UAS_Data *uasData;
-    int exit_status;
-};
+#include "advle.h"
 
 // Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
@@ -481,9 +434,6 @@ void init_bluetooth(struct config_data *config)
     hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);
     */
     hci_le_set_advertising_parameters(device_descriptor, 100);
-
-    // Inicia o advertise LE
-    hci_le_set_advertising_enable(device_descriptor);
 }
 
 // Limpa e fecha adaptador bluetooth e gps
@@ -555,7 +505,7 @@ void *gps_thread_function(struct gps_loop_args *args)
     pthread_exit(&args->exit_status);
 }
 
-static void sig_handler(int signo)
+void sig_handler(int signo)
 {
     if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
     {
@@ -563,59 +513,16 @@ static void sig_handler(int signo)
     }
 }
 
-int main(int argc, char *argv[])
+int advertise_le()
 {
-    parse_command_line(argc, argv, &config);
+    // Inicia o advertise LE
+    hci_le_set_advertising_enable(device_descriptor);
+    int i = 0;
 
-    struct ODID_UAS_Data uasData;
-    odid_initUasData(&uasData);
-    fill_example_data(&uasData);
-
-    init_bluetooth(&config);
-
-    if (!config.use_gps) // Caso queira testar e não possua gps.
-        fill_example_gps_data(&uasData);
-
-    signal(SIGINT, sig_handler);
-    signal(SIGKILL, sig_handler);
-    signal(SIGSTOP, sig_handler);
-    signal(SIGTERM, sig_handler);
-    if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
+    while (i < 100)
     {
-        if (init_gps(&source, &gpsdata) != 0)
-        {
-            fprintf(stderr,
-                    "No gpsd running or network error: %d, %s\n",
-                    errno, gps_errstr(errno));
-            cleanup(EXIT_FAILURE);
-        }
-
-        struct gps_loop_args args;
-        args.gpsdata = &gpsdata;
-        args.uasData = &uasData;
-        int ret = pthread_create(&gps_thread, NULL, (void *)&gps_thread_function, &args);
-        if (ret != 0)
-        {
-            fprintf(stderr, "Falha ao criar a pthread.\n");
-            return 1;
-        }
-
-        while (true)
-        {
-            if (kill_program)
-                break;
-            send_single_messages(&uasData, &config);
-        }
-    }
-    else
-    {
-        while (true)
-        {
-            if (kill_program)
-                break;
-            send_single_messages(&uasData, &config);
-        }
+        send_single_messages(&uasData, &config);
     }
 
-    cleanup(EXIT_SUCCESS);
+    hci_le_set_advertising_disable(device_descriptor);
 }
