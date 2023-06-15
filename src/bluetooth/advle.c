@@ -1,4 +1,34 @@
 #include "advle.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <time.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <sys/param.h>
+#include <sys/resource.h>
+
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/hci.h>
+#include <bluetooth/hci_lib.h>
+#include "../include/utils.h"
+#include "print_bt_features.h"
+
+#include "../include/gpsmod.c"
+
+#include "../include/opendroneid.h"
+#include "../include/opendroneid.c"
+
+struct ODID_UAS_Data uasData;
+pthread_t id, gps_thread;
+
+sem_t semaphore;
+
+int first = 1;
+
+int device_descriptor = 0;
 
 // Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
@@ -43,7 +73,7 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
 }
 
 // Preenche os dados da nave
-static void fill_example_data(struct ODID_UAS_Data *uasData)
+void fill_example_data(struct ODID_UAS_Data *uasData)
 {
     srand(time(0));
 
@@ -437,21 +467,11 @@ void init_bluetooth(struct config_data *config)
 }
 
 // Limpa e fecha adaptador bluetooth e gps
-static void cleanup(int exit_code)
+void cleanup(int exit_code)
 {
     hci_reset(device_descriptor);
     hci_le_set_advertising_disable(device_descriptor);
     hci_close_dev(device_descriptor);
-
-    if (config.use_gps)
-    {
-        int *ptr;
-        pthread_join(gps_thread, (void **)&ptr);
-        printf("Return value from gps_loop: %d\n", *ptr);
-
-        gps_close(&gpsdata);
-    }
-
     exit(exit_code);
 }
 
@@ -505,23 +525,20 @@ void *gps_thread_function(struct gps_loop_args *args)
     pthread_exit(&args->exit_status);
 }
 
-void sig_handler(int signo)
-{
-    if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
-    {
-        kill_program = true;
-    }
-}
 
-int advertise_le()
+
+void advertise_le()
 {
     // Inicia o advertise LE
+
     hci_le_set_advertising_enable(device_descriptor);
     int i = 0;
 
-    while (i < 100)
+    while (i < 50)
     {
         send_single_messages(&uasData, &config);
+        printf("%d", i);
+        i++;
     }
 
     hci_le_set_advertising_disable(device_descriptor);

@@ -1,4 +1,7 @@
 #include "advle.h"
+#include "../include/gpsmod.h"
+#include <errno.h>
+
 #include "scan.h"
 
 static void parse_command_line(int argc, char *argv[], struct config_data *config)
@@ -35,21 +38,29 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
                 }
         }
 }
-
+static void sig_handler_main(int signo)
+{
+        if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
+        {
+                kill_program = true;
+        }
+}
 int main(int argc, char *argv[])
 {
         parse_command_line(argc, argv, &config);
         odid_initUasData(&uasData);
         fill_example_data(&uasData);
 
+        // Setting bluetooth for advertising
         init_bluetooth(&config);
 
-        signal(SIGINT, sig_handler);
-        signal(SIGKILL, sig_handler);
-        signal(SIGSTOP, sig_handler);
-        signal(SIGTERM, sig_handler);
+        signal(SIGINT, sig_handler_main);
+        signal(SIGKILL, sig_handler_main);
+        signal(SIGSTOP, sig_handler_main);
+        signal(SIGTERM, sig_handler_main);
+        int i = 0;
 
-        if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
+        if (config.use_gps) // Enables GPS usage and thread.
         {
                 if (init_gps(&source, &gpsdata) != 0)
                 {
@@ -77,6 +88,7 @@ int main(int argc, char *argv[])
                         advertise_le();
                 }
 
+                // Ends GPS thread
                 int *ptr;
                 pthread_join(gps_thread, (void **)&ptr);
                 gps_close(&gpsdata);
@@ -87,7 +99,16 @@ int main(int argc, char *argv[])
                 {
                         if (kill_program)
                                 break;
+                        printf("---\n");
                         advertise_le();
+                        while (i < 25)
+                        {
+                                printf("%d",i);
+                                i++;
+                        }
+                        i = 0;
                 }
         }
+
+        cleanup(EXIT_SUCCESS);
 }
