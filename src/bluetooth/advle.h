@@ -31,5 +31,6 @@ void init_bluetooth();
 void *gps_thread_function(struct gps_loop_args *args);
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config);
 void fill_example_gps_data(struct ODID_UAS_Data *uasData);
+void hci_reset(int dd);
 void cleanup(int exit_code);
 void advertise_le();

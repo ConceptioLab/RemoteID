@@ -189,7 +189,7 @@ static void generate_random_mac_address(uint8_t *mac)
 }
 
 // Reseta o adaptador
-static void hci_reset(int dd)
+void hci_reset(int dd)
 {
     uint8_t ogf = OGF_HOST_CTL; // Opcode Group Field. LE Controller Commands
     uint16_t ocf = OCF_RESET;

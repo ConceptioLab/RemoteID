@@ -105,6 +105,7 @@ int main(int argc, char *argv[])
                         if (kill_program)
                                 break;
                         advertise_le();
+                        hci_reset(device);
                         scan_le();
                 }
         }
