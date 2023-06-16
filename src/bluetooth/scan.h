@@ -18,6 +18,8 @@ struct UAV_RID {u_char            mac[6], counter[16];
 };
 
 void  parse_odid(u_char *,u_char *,int,int,const char *,const float *);
+void init_scan(int device);
+void scan_le();
 int mac_index(uint8_t *, struct UAV_RID *);
 void  dump(char *,uint8_t *,int);
 char *printable_text(uint8_t *,int);

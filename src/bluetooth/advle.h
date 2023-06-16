@@ -2,15 +2,6 @@
 #include "../include/utils.h"
 #include <pthread.h>
 
-#ifndef GLOBAL_VARIABLE_H
-#define GLOBAL_VARIABLE_H
-
-extern bool kill_program;
-extern int first;
-
-#endif
-
-
 #define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
 
 #define BASIC_ID_POS_ZERO 0
@@ -34,8 +25,9 @@ struct gps_loop_args
 };
 
 
+int open_hci_device();
 int get_mac();
-void init_bluetooth(struct config_data *config);
+void init_bluetooth();
 void *gps_thread_function(struct gps_loop_args *args);
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config);
 void fill_example_gps_data(struct ODID_UAS_Data *uasData);

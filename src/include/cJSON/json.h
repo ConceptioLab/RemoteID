@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "cJSON.h"
-#include "cJSON.c"
 
 void addOrUpdateAttribute(cJSON *object, const char *key, cJSON *value);
 void mergeObjects(cJSON *targetObject, cJSON *sourceObject);

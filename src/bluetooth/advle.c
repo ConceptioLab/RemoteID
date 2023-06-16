@@ -21,6 +21,8 @@
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
 
+#include "remote.h"
+
 struct ODID_UAS_Data uasData;
 pthread_t id, gps_thread;
 
@@ -357,7 +359,7 @@ static void stop_transmit()
 }
 
 // Ativa o bluetooth para envio.
-static int open_hci_device()
+int open_hci_device()
 {
     struct hci_filter flt; // Host Controller Interface filter
     uint8_t mac[6] = {0};
@@ -408,7 +410,7 @@ int get_mac()
 }
 
 // Inicia bluetooth e parametros do advertising
-void init_bluetooth(struct config_data *config)
+void init_bluetooth()
 {
     device_descriptor = open_hci_device();
 

@@ -1,5 +1,6 @@
 #include "gpsmod.h"
 #include "opendroneid.h"
+#include "../bluetooth/remote.h"
 #include <math.h>
 
 int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
@@ -14,7 +15,7 @@ int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
         return 1;
     }
     else
-        printf("Porta aberta");
+        printf("Porta aberta\n");
 
     if (NULL != source->device)
     {

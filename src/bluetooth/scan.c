@@ -16,12 +16,14 @@
 #include <bluetooth/hci_lib.h>
 
 #include "../include/opendroneid.h"
-#include "../include/opendroneid.c"
 #include "../include/cJSON/json.c"
+#include "../include/cJSON/cJSON.c"
 
 #include "scan.h"
+#include "remote.h"
 
-static bool kill_program = false;
+int ret, status;
+
 static int sniffer = -1, json_socket = -1, max_udp_length = 0;
 static uint32_t counter = 1;
 static struct UAV_RID RID_data[MAX_UAVS];
@@ -31,6 +33,8 @@ static FILE *debug_file = NULL;
 static char *log_dir = NULL;
 char text[128];
 const mode_t file_mode = 0666;
+
+le_set_scan_enable_cp scan_cp;
 
 static volatile uint32_t odid_packets = 0;
 
@@ -251,7 +255,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 		strcat(json, string);
 
 		memcpy(&RID_data[RID_index].odid_data.System, &UAS_data.System, sizeof(ODID_System_data));
-
 	}
 
 	if (UAS_data.SelfIDValid)
@@ -275,7 +278,6 @@ void parse_odid(u_char *mac, u_char *payload, int length, int rssi, const char *
 				sprintf(string, "\"unix time (alt)\" : %lu, ",
 					((unsigned long int)UAS_data.Auth[page].Timestamp) + ID_OD_AUTH_DATUM);
 				strcat(json, string);
-
 			}
 
 			sprintf(string, "\"auth page %d\" : {\"text\" : \"%s\", \"values\": [", page,
@@ -357,16 +359,11 @@ int parse_bluez_sniffer(int device)
 	return adverts;
 }
 
-int main()
+void init_scan(int device)
 {
-	int ret, status;
-
-	// Get HCI device.
-	const int device = hci_open_dev(hci_get_route(NULL));
 	if (device < 0)
 	{
 		perror("Failed to open HCI device.");
-		return 0;
 	}
 
 	// Resetar adaptador.
@@ -388,7 +385,6 @@ int main()
 	{
 		hci_close_dev(device);
 		perror("Failed to set scan parameters data.");
-		return 0;
 	}
 
 	// Set BLE events report mask.
@@ -404,11 +400,12 @@ int main()
 	{
 		hci_close_dev(device);
 		perror("Failed to set event mask.");
-		return 0;
 	}
+}
 
+int enable_scan(int device)
+{
 	// Enable scanning.
-	le_set_scan_enable_cp scan_cp;
 	memset(&scan_cp, 0, sizeof(scan_cp));
 	scan_cp.enable = 0x01;	   // Enable flag.
 	scan_cp.filter_dup = 0x00; // Filtering disabled.
@@ -422,6 +419,24 @@ int main()
 		perror("Failed to enable scan.");
 		return 0;
 	}
+}
+
+int disable_scan(int device)
+{
+	// Disable scanning.
+	memset(&scan_cp, 0, sizeof(scan_cp));
+	scan_cp.enable = 0x00; // Disable flag.
+
+	struct hci_request disable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
+	ret = hci_send_req(device, &disable_adv_rq, 1000);
+}
+
+void scan_le()
+{
+
+	// Get HCI device.
+	const int device = hci_open_dev(hci_get_route(NULL));
+	enable_scan(device);
 
 	// Get Results.
 	struct hci_filter nf;
@@ -432,14 +447,8 @@ int main()
 	{
 		hci_close_dev(device);
 		perror("Could not set socket options\n");
-		return 0;
+		kill_program = true;
 	}
-
-	signal(SIGINT, sig_handler);
-	signal(SIGKILL, sig_handler);
-	signal(SIGSTOP, sig_handler);
-	signal(SIGTERM, sig_handler);
-
 	printf("Scanning....\n");
 
 	uint8_t buf[HCI_MAX_EVENT_SIZE];
@@ -452,30 +461,16 @@ int main()
 
 	// Tratamento de dados json.
 
-	while (1)
+	int i = 0;
+	while (i < 50)
 	{
 		if (kill_program)
 			break;
 
 		parse_bluez_sniffer(device);
+		i++;
 	}
-
-	// Disable scanning.
-	memset(&scan_cp, 0, sizeof(scan_cp));
-	scan_cp.enable = 0x00; // Disable flag.
-
-	struct hci_request disable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
-	ret = hci_send_req(device, &disable_adv_rq, 1000);
-	if (ret < 0)
-	{
-		hci_close_dev(device);
-		perror("Failed to disable scan.");
-		return 0;
-	}
-
-	hci_close_dev(device);
-
-	return 0;
+	disable_scan(device);
 }
 
 int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
@@ -520,7 +515,6 @@ int mac_index(uint8_t *mac, struct UAV_RID *RID_data)
 
 		sprintf(text, "%02x:%02x:%02x:%02x:%02x:%02x",
 			mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-
 
 		fprintf(stderr, " - using RID record %d\n", oldest);
 

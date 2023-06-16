@@ -1,8 +1,11 @@
-#include "advle.h"
-#include "../include/gpsmod.h"
 #include <errno.h>
 
+#include "../include/gpsmod.h"
+
+#include "advle.h"
 #include "scan.h"
+
+
 
 bool kill_program = false;
 
@@ -55,7 +58,9 @@ int main(int argc, char *argv[])
         fill_example_gps_data(&uasData);
 
         // Setting bluetooth for advertising
-        init_bluetooth(&config);
+        init_bluetooth();
+	const int device = open_hci_device();
+        init_scan(device);
 
         signal(SIGINT, sig_handler_main);
         signal(SIGKILL, sig_handler_main);
@@ -65,7 +70,7 @@ int main(int argc, char *argv[])
 
         if (config.use_gps) // Enables GPS usage and thread.
         {
-                printf("GPS: %d\n", config.use_gps);
+                printf("GPS: LIGADO\n");
                 if (init_gps(&source, &gpsdata) != 0)
                 {
                         fprintf(stderr,
@@ -91,29 +96,16 @@ int main(int argc, char *argv[])
                                 break;
                         advertise_le();
                 }
-
-                // Ends GPS thread
-                int *ptr;
-                pthread_join(gps_thread, (void **)ptr);
-                gps_stream(args.gpsdata , WATCH_DISABLE, NULL);
-
-                pthread_exit(0);
-                gps_close(&gpsdata);
         }
         else
         {
+                printf("GPS: DESLIGADO\n");
                 while (true)
                 {
                         if (kill_program)
                                 break;
-                        printf("---\n");
                         advertise_le();
-                        while (i < 25)
-                        {
-                                printf("%d", i);
-                                i++;
-                        }
-                        i = 0;
+                        scan_le();
                 }
         }
 
