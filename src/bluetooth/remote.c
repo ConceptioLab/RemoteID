@@ -5,8 +5,6 @@
 #include "advle.h"
 #include "scan.h"
 
-
-
 bool kill_program = false;
 
 static void parse_command_line(int argc, char *argv[], struct config_data *config)
@@ -38,6 +36,9 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
                 case 'g':
                         config->use_gps = true;
                         break;
+                case 's':
+                        config->use_scan = true;
+                        break;
                 default:
                         break;
                 }
@@ -55,10 +56,9 @@ int main(int argc, char *argv[])
         parse_command_line(argc, argv, &config);
         odid_initUasData(&uasData);
         fill_example_data(&uasData, &config);
-        fill_example_gps_data(&uasData);
 
         // Setting bluetooth for advertising
-	const int device = open_hci_device();
+        const int device = open_hci_device();
         init_bluetooth();
 
         signal(SIGINT, sig_handler_main);
@@ -94,20 +94,31 @@ int main(int argc, char *argv[])
                         if (kill_program)
                                 break;
                         advertise_le();
-                        scan_le();
-
+                        if (config.use_scan)
+                        {
+                                scan_le();
+                        }
                 }
+                // Fecha a conexão com o GPS
+                gps_stream(args.gpsdata, WATCH_DISABLE, NULL);
+                gps_close(args.gpsdata);
+
+                pthread_exit(0);
         }
         else
         {
+                fill_example_gps_data(&uasData);
+
                 printf("GPS: DESLIGADO\n");
                 while (true)
                 {
                         if (kill_program)
                                 break;
                         advertise_le();
-                        hci_reset(device);
-                        scan_le();
+                        if (config.use_scan)
+                        {
+                                scan_le();
+                        }
                 }
         }
 

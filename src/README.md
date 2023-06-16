@@ -16,7 +16,6 @@
 sudo apt-get install --reinstall -y bluez libgps-dev
 sudo gcc ./src/bluetooth/remote.c ./src/bluetooth/advle.c ./src/bluetooth/scan.c $(pkg-config --libs --cflags bluez libgps) -lm -pthread -o remote
 ```
-Teve erro de pthread? Adicione -pthread ao fim do seu comando de compilação.
 
 Executar normalmente
 

@@ -485,16 +485,17 @@ void *gps_thread_function(struct gps_loop_args *args)
 void advertise_le()
 {
     hci_le_set_advertising_parameters(device_descriptor, 100);
+
     // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);
+    printf("Advertising\n");
     int i = 0;
-
     while (i < 50)
     {
         send_single_messages(&uasData, &config);
         i++;
     }
-    usleep(8000);
 
     hci_le_set_advertising_disable(device_descriptor);
+    usleep(10000);
 }
