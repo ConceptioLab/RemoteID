@@ -488,7 +488,7 @@ void advertise_le()
 
     // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);
-    printf("Advertising\n");
+    printf("Advertising...\n");
     int i = 0;
     while (i < 50)
     {
