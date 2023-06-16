@@ -51,7 +51,8 @@ int main(int argc, char *argv[])
 {
         parse_command_line(argc, argv, &config);
         odid_initUasData(&uasData);
-        fill_example_data(&uasData);
+        fill_example_data(&uasData, &config);
+        fill_example_gps_data(&uasData);
 
         // Setting bluetooth for advertising
         init_bluetooth(&config);
@@ -64,6 +65,7 @@ int main(int argc, char *argv[])
 
         if (config.use_gps) // Enables GPS usage and thread.
         {
+                printf("GPS: %d\n", config.use_gps);
                 if (init_gps(&source, &gpsdata) != 0)
                 {
                         fprintf(stderr,

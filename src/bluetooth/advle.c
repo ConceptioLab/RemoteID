@@ -25,8 +25,7 @@ struct ODID_UAS_Data uasData;
 pthread_t id, gps_thread;
 
 sem_t semaphore;
-
-int first = 1;
+int first = 0;
 
 int device_descriptor = 0;
 
@@ -36,44 +35,8 @@ float randomInRange(float min, float max)
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
-// Configuração vindo dos argumentos ao executar cógido.
-static void parse_command_line(int argc, char *argv[], struct config_data *config)
-{
-    if (argc == 1)
-    {
-        exit(EXIT_SUCCESS);
-    }
-
-    for (int i = 1; i < argc; i++)
-    {
-        switch (*argv[i])
-        {
-        case 'b':
-            config->use_beacon = true;
-            break;
-        case 'l':
-            config->use_btl = true;
-            break;
-        case '4':
-            config->use_bt4 = true;
-            break;
-        case '5':
-            config->use_bt5 = true;
-            break;
-        case 'p':
-            config->use_packs = true;
-            break;
-        case 'g':
-            config->use_gps = true;
-            break;
-        default:
-            break;
-        }
-    }
-}
-
 // Preenche os dados da nave
-void fill_example_data(struct ODID_UAS_Data *uasData)
+void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
     srand(time(0));
 
@@ -112,7 +75,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    if (!config.use_gps)
+    if (config->use_gps == false)
     {
         uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
         uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
@@ -133,7 +96,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData)
 }
 
 // Preenche os dados de GPS
-static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
+void fill_example_gps_data(struct ODID_UAS_Data *uasData)
 {
     srand(time(0));
 
@@ -505,16 +468,14 @@ void *gps_thread_function(struct gps_loop_args *args)
                 fprintf(stderr, "Falha ao ler dados do GPS.\n");
                 continue;
             }
-            process_gps_data(gpsdata, uasData, first);
-            if (uasData->System.OperatorLatitude != 0)
-                first++;
+            process_gps_data(gpsdata, uasData);
 
             usleep(8000);
         }
-        else
+        /* else
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
-        }
+        } */
     }
 
     // Fecha a conexão com o GPS
@@ -533,6 +494,7 @@ void advertise_le()
 
     hci_le_set_advertising_enable(device_descriptor);
     int i = 0;
+
 
     while (i < 50)
     {

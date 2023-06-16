@@ -6,6 +6,7 @@
 #define GLOBAL_VARIABLE_H
 
 extern bool kill_program;
+extern int first;
 
 #endif
 
@@ -36,6 +37,7 @@ struct gps_loop_args
 int get_mac();
 void init_bluetooth(struct config_data *config);
 void *gps_thread_function(struct gps_loop_args *args);
-void fill_example_data(struct ODID_UAS_Data *uasData);
+void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config);
+void fill_example_gps_data(struct ODID_UAS_Data *uasData);
 void cleanup(int exit_code);
 void advertise_le();
