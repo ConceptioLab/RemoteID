@@ -58,9 +58,8 @@ int main(int argc, char *argv[])
         fill_example_gps_data(&uasData);
 
         // Setting bluetooth for advertising
-        init_bluetooth();
 	const int device = open_hci_device();
-        init_scan(device);
+        init_bluetooth();
 
         signal(SIGINT, sig_handler_main);
         signal(SIGKILL, sig_handler_main);
@@ -95,6 +94,8 @@ int main(int argc, char *argv[])
                         if (kill_program)
                                 break;
                         advertise_le();
+                        scan_le();
+
                 }
         }
         else

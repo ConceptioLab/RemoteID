@@ -352,12 +352,6 @@ static void hci_le_remove_advertising_set(int dd, uint8_t set)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-// Para a transmissão
-static void stop_transmit()
-{
-    hci_le_set_advertising_disable(device_descriptor);
-}
-
 // Ativa o bluetooth para envio.
 int open_hci_device()
 {
@@ -488,21 +482,19 @@ void *gps_thread_function(struct gps_loop_args *args)
     pthread_exit(&args->exit_status);
 }
 
-
-
 void advertise_le()
 {
+    hci_le_set_advertising_parameters(device_descriptor, 100);
     // Inicia o advertise LE
-
     hci_le_set_advertising_enable(device_descriptor);
     int i = 0;
-
 
     while (i < 50)
     {
         send_single_messages(&uasData, &config);
         i++;
     }
+    usleep(8000);
 
     hci_le_set_advertising_disable(device_descriptor);
 }

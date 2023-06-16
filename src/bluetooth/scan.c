@@ -359,6 +359,24 @@ int parse_bluez_sniffer(int device)
 	return adverts;
 }
 
+int enable_scan(int device)
+{
+	// Enable scanning.
+	memset(&scan_cp, 0, sizeof(scan_cp));
+	scan_cp.enable = 0x01;	   // Enable flag.
+	scan_cp.filter_dup = 0x00; // Filtering disabled.
+
+	struct hci_request enable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
+
+	ret = hci_send_req(device, &enable_adv_rq, 1000);
+	if (ret < 0)
+	{
+		hci_close_dev(device);
+		perror("Failed to enable scan.");
+		return 0;
+	}
+}
+
 void init_scan(int device)
 {
 	if (device < 0)
@@ -401,25 +419,10 @@ void init_scan(int device)
 		hci_close_dev(device);
 		perror("Failed to set event mask.");
 	}
+	enable_scan(device);
 }
 
-int enable_scan(int device)
-{
-	// Enable scanning.
-	memset(&scan_cp, 0, sizeof(scan_cp));
-	scan_cp.enable = 0x01;	   // Enable flag.
-	scan_cp.filter_dup = 0x00; // Filtering disabled.
 
-	struct hci_request enable_adv_rq = ble_hci_request(OCF_LE_SET_SCAN_ENABLE, LE_SET_SCAN_ENABLE_CP_SIZE, &status, &scan_cp);
-
-	ret = hci_send_req(device, &enable_adv_rq, 1000);
-	if (ret < 0)
-	{
-		hci_close_dev(device);
-		perror("Failed to enable scan.");
-		return 0;
-	}
-}
 
 int disable_scan(int device)
 {
@@ -436,7 +439,7 @@ void scan_le()
 
 	// Get HCI device.
 	const int device = hci_open_dev(hci_get_route(NULL));
-	enable_scan(device);
+	init_scan(device);
 
 	// Get Results.
 	struct hci_filter nf;
