@@ -1,5 +1,6 @@
 #include "gpsmod.h"
 #include "opendroneid.h"
+#include "../bluetooth/remote.h"
 #include <math.h>
 
 int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
@@ -14,7 +15,7 @@ int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
         return 1;
     }
     else
-        printf("Porta aberta");
+        printf("Porta aberta\n");
 
     if (NULL != source->device)
     {
@@ -26,21 +27,27 @@ int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
     return 0;
 }
 
-void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData, int first)
+void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData)
 {
-    printf("Fix Mode: %d\n", gpsdata->fix.mode);
-    if (gpsdata->fix.mode >= MODE_NO_FIX){
+    if (gpsdata->fix.mode >= MODE_NO_FIX)
+    {
         if ((gpsdata->fix.latitude > 0.00001 && gpsdata->fix.longitude > 0.00001) ||
             (gpsdata->fix.latitude < -0.00001 && gpsdata->fix.longitude < 0.00001))
         {
 
             uasData->Location.Latitude = gpsdata->fix.latitude;
             uasData->Location.Longitude = gpsdata->fix.longitude;
+            if (first == 0 || first < 2)
+            {
+                first++;
+            }
+
             if (first == 1)
             {
-                uasData->System.OperatorLatitude = gpsdata->fix.latitude;
-                uasData->System.OperatorLongitude = gpsdata->fix.longitude;
-                
+                printf("Set operator location\n");
+                uasData->System.OperatorLatitude = uasData->Location.Latitude;
+                uasData->System.OperatorLongitude = uasData->Location.Longitude;
+                first++;
             }
         }
     }

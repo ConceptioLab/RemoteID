@@ -1,51 +1,35 @@
+#include "advle.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
 #include <time.h>
-#include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include "../include/gpsmod.c"
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/hci_lib.h>
+#include "../include/utils.h"
+#include "print_bt_features.h"
+
+#include "../include/gpsmod.c"
 
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
-#include "bluetooth.h"
-#include "print_bt_features.h"
 
-sem_t semaphore;
+#include "remote.h"
+
+struct ODID_UAS_Data uasData;
 pthread_t id, gps_thread;
 
-#define MINIMUM(a, b) (((a) < (b)) ? (a) : (b))
-
-#define BASIC_ID_POS_ZERO 0
-#define BASIC_ID_POS_ONE 1
-
-#define ODID_MESSAGE_SIZE 25
-
-int first = 1;
+sem_t semaphore;
+int first = 0;
 
 int device_descriptor = 0;
-
-static struct config_data config = {0};
-static bool kill_program = false;
-
-static struct fixsource_t source;
-static struct gps_data_t gpsdata;
-
-struct gps_loop_args
-{
-    struct gps_data_t *gpsdata;
-    struct ODID_UAS_Data *uasData;
-    int exit_status;
-};
 
 // Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
@@ -53,44 +37,8 @@ float randomInRange(float min, float max)
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
-// Configuração vindo dos argumentos ao executar cógido.
-static void parse_command_line(int argc, char *argv[], struct config_data *config)
-{
-    if (argc == 1)
-    {
-        exit(EXIT_SUCCESS);
-    }
-
-    for (int i = 1; i < argc; i++)
-    {
-        switch (*argv[i])
-        {
-        case 'b':
-            config->use_beacon = true;
-            break;
-        case 'l':
-            config->use_btl = true;
-            break;
-        case '4':
-            config->use_bt4 = true;
-            break;
-        case '5':
-            config->use_bt5 = true;
-            break;
-        case 'p':
-            config->use_packs = true;
-            break;
-        case 'g':
-            config->use_gps = true;
-            break;
-        default:
-            break;
-        }
-    }
-}
-
 // Preenche os dados da nave
-static void fill_example_data(struct ODID_UAS_Data *uasData)
+void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
     srand(time(0));
 
@@ -129,7 +77,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    if (!config.use_gps)
+    if (config->use_gps == false)
     {
         uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
         uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
@@ -150,7 +98,7 @@ static void fill_example_data(struct ODID_UAS_Data *uasData)
 }
 
 // Preenche os dados de GPS
-static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
+void fill_example_gps_data(struct ODID_UAS_Data *uasData)
 {
     srand(time(0));
 
@@ -170,34 +118,6 @@ static void fill_example_gps_data(struct ODID_UAS_Data *uasData)
     uasData->Location.SpeedAccuracy = createEnumSpeedAccuracy(0.5f);
     uasData->Location.TSAccuracy = createEnumTimestampAccuracy(0.1f);
     uasData->Location.TimeStamp = 360.52f;
-}
-
-// Ativa o bluetooth para envio.
-static int open_hci_device()
-{
-    struct hci_filter flt; // Host Controller Interface filter
-
-    int dev_id = hci_devid("hci0");
-    if (dev_id < 0)
-        dev_id = hci_get_route(NULL);
-
-    int dd = hci_open_dev(dev_id);
-    if (dd < 0)
-    {
-        perror("Device open failed");
-        exit(EXIT_FAILURE);
-    }
-
-    hci_filter_clear(&flt);
-    hci_filter_set_ptype(HCI_EVENT_PKT, &flt);
-    hci_filter_all_events(&flt);
-
-    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0)
-    {
-        perror("HCI filter setup failed");
-        exit(EXIT_FAILURE);
-    }
-    return dd;
 }
 
 // Envia um comando de baixo nivel direto ao adaptador
@@ -238,11 +158,6 @@ static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int l
         memcpy(rparam, ptr, len);
         if (rparam[0] && ocf != 0x3C)
             printf("Command 0x%X returned error 0x%X\n", ocf, rparam[0]);
-        /* if (ocf == OCF_LE_READ_LOCAL_SUPPORTED_FEATURES)
-        {
-            printf("Supported Low Energy Bluetooth features:\n");
-            print_bt_le_features(&rparam[1]);
-        } */
         if (ocf == 0x36)
             printf("The transmit power is set to %d dBm\n", (unsigned char)rparam[1]);
         fflush(stdout);
@@ -274,7 +189,7 @@ static void generate_random_mac_address(uint8_t *mac)
 }
 
 // Reseta o adaptador
-static void hci_reset(int dd)
+void hci_reset(int dd)
 {
     uint8_t ogf = OGF_HOST_CTL; // Opcode Group Field. LE Controller Commands
     uint16_t ocf = OCF_RESET;
@@ -437,20 +352,60 @@ static void hci_le_remove_advertising_set(int dd, uint8_t set)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
-// Para a transmissão
-static void stop_transmit()
+// Ativa o bluetooth para envio.
+int open_hci_device()
 {
-    hci_le_set_advertising_disable(device_descriptor);
+    struct hci_filter flt; // Host Controller Interface filter
+    uint8_t mac[6] = {0};
+
+    int dev_id = hci_devid("hci0");
+    if (dev_id < 0)
+        dev_id = hci_get_route(NULL);
+
+    int dd = hci_open_dev(dev_id);
+    if (dd < 0)
+    {
+        perror("Device open failed");
+        exit(EXIT_FAILURE);
+    }
+
+    hci_filter_clear(&flt);
+    hci_filter_set_ptype(HCI_EVENT_PKT, &flt);
+    hci_filter_all_events(&flt);
+
+    if (setsockopt(dd, SOL_HCI, HCI_FILTER, &flt, sizeof(flt)) < 0)
+    {
+        perror("HCI filter setup failed");
+        exit(EXIT_FAILURE);
+    }
+    return dd;
+}
+
+// Pegar o MAC padrão do dispositivo;
+int get_mac()
+{
+    struct hci_dev_info dev_info;
+    uint8_t mac[6] = {0};
+
+    int dev_id = hci_devid("hci0");
+    if (dev_id < 0)
+        dev_id = hci_get_route(NULL);
+
+    if (hci_devinfo(dev_id, &dev_info) < 0)
+    {
+        perror("Failed to get device info");
+        return 1;
+    }
+    memcpy(mac, &dev_info.bdaddr, sizeof(mac));
+    printMACAddress(mac);
+
+    hci_le_set_random_address(device_descriptor, mac);
+    return 0;
 }
 
 // Inicia bluetooth e parametros do advertising
-void init_bluetooth(struct config_data *config)
+void init_bluetooth()
 {
-
-
-    uint8_t mac[6] = {0};
-    generate_random_mac_address(mac);
-
     device_descriptor = open_hci_device();
 
     // Parar transmissao LE
@@ -459,30 +414,23 @@ void init_bluetooth(struct config_data *config)
 
     // Configura o LE advertise
     hci_reset(device_descriptor);
-    hci_le_set_advertising_parameters(device_descriptor, 100);
+    get_mac();
+    // Setar MAC aleatório, comente a linha de cima e descomente bloco abaixo.
+    /*
+    uint8_t mac[6] = {0};
+    generate_random_mac_address(mac);
     hci_le_set_random_address(device_descriptor, mac);
-    hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);//Seta random address
-
-    // Inicia o advertise LE
-    hci_le_set_advertising_enable(device_descriptor);
+    hci_le_set_advertising_set_random_address(device_descriptor, 0, mac);
+    */
+    hci_le_set_advertising_parameters(device_descriptor, 100);
 }
 
 // Limpa e fecha adaptador bluetooth e gps
-static void cleanup(int exit_code)
+void cleanup(int exit_code)
 {
     hci_reset(device_descriptor);
     hci_le_set_advertising_disable(device_descriptor);
     hci_close_dev(device_descriptor);
-
-    if (config.use_gps)
-    {
-        int *ptr;
-        pthread_join(gps_thread, (void **)&ptr);
-        printf("Return value from gps_loop: %d\n", *ptr);
-
-        gps_close(&gpsdata);
-    }
-
     exit(exit_code);
 }
 
@@ -516,16 +464,14 @@ void *gps_thread_function(struct gps_loop_args *args)
                 fprintf(stderr, "Falha ao ler dados do GPS.\n");
                 continue;
             }
-            process_gps_data(gpsdata, uasData, first);
-            if (uasData->System.OperatorLatitude != 0)
-                first++;
+            process_gps_data(gpsdata, uasData);
 
             usleep(8000);
         }
-        else
+        /* else
         {
             fprintf(stderr, "Socket não está pronto, aguardando...\n");
-        }
+        } */
     }
 
     // Fecha a conexão com o GPS
@@ -536,70 +482,20 @@ void *gps_thread_function(struct gps_loop_args *args)
     pthread_exit(&args->exit_status);
 }
 
-static void sig_handler(int signo)
+void advertise_le()
 {
-    if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
+    hci_le_set_advertising_parameters(device_descriptor, 100);
+
+    // Inicia o advertise LE
+    hci_le_set_advertising_enable(device_descriptor);
+    printf("Advertising...\n");
+    int i = 0;
+    while (i < 50)
     {
-        kill_program = true;
-    }
-}
-
-int main(int argc, char *argv[])
-{
-    parse_command_line(argc, argv, &config);
-
-    source.server = "localhost";
-    source.port = "2947";
-
-    struct ODID_UAS_Data uasData;
-    odid_initUasData(&uasData);
-    fill_example_data(&uasData);
-
-    init_bluetooth(&config);
-
-    if (!config.use_gps) // Caso queira testar e não possua gps.
-        fill_example_gps_data(&uasData);
-
-    signal(SIGINT, sig_handler);
-    signal(SIGKILL, sig_handler);
-    signal(SIGSTOP, sig_handler);
-    signal(SIGTERM, sig_handler);
-    if (config.use_gps) // Caso colocou o argumento g, e ativou o gps.
-    {
-        if (init_gps(&source, &gpsdata) != 0)
-        {
-            fprintf(stderr,
-                    "No gpsd running or network error: %d, %s\n",
-                    errno, gps_errstr(errno));
-            cleanup(EXIT_FAILURE);
-        }
-
-        struct gps_loop_args args;
-        args.gpsdata = &gpsdata;
-        args.uasData = &uasData;
-        int ret = pthread_create(&gps_thread, NULL, (void *)&gps_thread_function, &args);
-        if (ret != 0)
-        {
-            fprintf(stderr, "Falha ao criar a pthread.\n");
-            return 1;
-        }
-
-        while (true)
-        {
-            if (kill_program)
-                break;
-            send_single_messages(&uasData, &config);
-        }
-    }
-    else
-    {
-        while (true)
-        {
-            if (kill_program)
-                break;
-            send_single_messages(&uasData, &config);
-        }
+        send_single_messages(&uasData, &config);
+        i++;
     }
 
-    cleanup(EXIT_SUCCESS);
+    hci_le_set_advertising_disable(device_descriptor);
+    usleep(10000);
 }

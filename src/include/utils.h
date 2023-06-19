@@ -24,6 +24,8 @@ struct config_data {
 
     bool use_gps;
     
+    bool use_scan;
+    
     uint8_t handle_bt4;
     uint8_t handle_bt5;
 

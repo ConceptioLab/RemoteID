@@ -10,18 +10,17 @@
 
 *wifi_sender* ainda nao funciona.
 
-# Executando Remote ID linux
+# Executando Remote ID linux - Advertise e Scan
 
 ```bash
 sudo apt-get install --reinstall -y bluez libgps-dev
-sudo gcc -o advLE ./src/bluetooth/advLE.c $(pkg-config --libs --cflags bluez libgps) -lm
+sudo gcc ./src/bluetooth/remote.c ./src/bluetooth/advle.c ./src/bluetooth/scan.c $(pkg-config --libs --cflags bluez libgps) -lm -pthread -o remote
 ```
-Teve erro de pthread? Adicione -pthread ao fim do seu comando de compilação.
 
 Executar normalmente
 
 ```bash
-sudo ./advLE arg
+sudo ./remote arg
 ```
 
 Substitua "arg" por:
@@ -33,12 +32,5 @@ g para ativar o gps.
 Exemplo: 
 
 ```bash
-sudo ./advLE l g
-```
-
-# Executanco o Scan
-
-```bash
-sudo gcc src/bluetooth/scan.c -o scan -lbluetooth -lm
-sudo ./scan
+sudo ./remote l g
 ```
