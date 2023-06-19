@@ -34,40 +34,93 @@ int first = 0;
 int device_descriptor = 0;
 
 #define MAX_STRING_LENGTH 100
-
+#include <libgen.h>
 // Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
 {
     return min + ((float)rand() / RAND_MAX) * (max - min);
 }
 
+ODID_uatype_t convertIntToUAType(int value)
+{
+    switch (value)
+    {
+    case 0:
+        return ODID_UATYPE_NONE;
+    case 1:
+        return ODID_UATYPE_AEROPLANE;
+    case 2:
+        return ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
+    case 3:
+        return ODID_UATYPE_GYROPLANE;
+    case 4:
+        return ODID_UATYPE_HYBRID_LIFT;
+    case 5:
+        return ODID_UATYPE_ORNITHOPTER;
+    case 6:
+        return ODID_UATYPE_GLIDER;
+    case 7:
+        return ODID_UATYPE_KITE;
+    case 8:
+        return ODID_UATYPE_FREE_BALLOON;
+    case 9:
+        return ODID_UATYPE_CAPTIVE_BALLOON;
+    case 10:
+        return ODID_UATYPE_AIRSHIP;
+    case 11:
+        return ODID_UATYPE_FREE_FALL_PARACHUTE;
+    case 12:
+        return ODID_UATYPE_ROCKET;
+    case 13:
+        return ODID_UATYPE_TETHERED_POWERED_AIRCRAFT;
+    case 14:
+        return ODID_UATYPE_GROUND_OBSTACLE;
+    case 15:
+        return ODID_UATYPE_OTHER;
+    default:
+        return ODID_UATYPE_NONE; // Valor padrão, se o número não corresponder a nenhum tipo válido
+    }
+}
+
 // Preenche os dados da nave
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
-    srand(time(0));
     config_t cfg;
     config_init(&cfg);
-    if (!config_read_file(&cfg, "../config.cfg"))
-    {
-        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
-                config_error_line(&cfg), config_error_text(&cfg));
-        config_destroy(&cfg);
+    char currentPath[1024];
+    if (realpath(__FILE__, currentPath) == NULL) {
+        perror("Erro ao obter o caminho absoluto do arquivo");
     }
 
-    uasData->BasicID[BASIC_ID_POS_ZERO].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
+    // Obter o diretório pai do caminho atual
+    char *parentDir = dirname(currentPath);
+
+    // Concatenar o nome do arquivo de configuração ao diretório pai
+    char configFilePath[1024];
+    snprintf(configFilePath, sizeof(configFilePath), "%s/uav.cfg", parentDir);
+
+
+    if (!config_read_file(&cfg, configFilePath))
+    {
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+        return;
+    }
+
     uasData->BasicID[BASIC_ID_POS_ZERO].IDType = ODID_IDTYPE_SERIAL_NUMBER;
 
     char uas_id[] = "555555555555555555AB";
-    char *value;
-    if (config_lookup_string(&cfg, "uas_id", &value))
+    const char *uas_id_cfg;
+    if (config_lookup_string(&cfg, "uas_id", &uas_id_cfg))
     {
-        strncpy(uas_id, value, sizeof(uas_id));
+        strncpy(uas_id, uas_id_cfg, strlen(uas_id_cfg));
     }
     strncpy(uasData->BasicID[BASIC_ID_POS_ZERO].UASID, uas_id, MINIMUM(sizeof(uas_id), sizeof(uasData->BasicID[BASIC_ID_POS_ZERO].UASID)));
 
-    if (config_lookup_string(&cfg, "UAType", &value))
+    int uatype_int;
+    if (config_lookup_int(&cfg, "UAType", &uatype_int))
     {
-        uasData->BasicID[BASIC_ID_POS_ONE].UAType = value;
+        uasData->BasicID[BASIC_ID_POS_ONE].UAType = convertIntToUAType(uatype_int);
     }
     else
     {
@@ -77,11 +130,11 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     uasData->BasicID[BASIC_ID_POS_ONE].IDType = ODID_IDTYPE_SPECIFIC_SESSION_ID;
     char uas_caa_id[] = "7272727727272772720A";
 
-    if (config_lookup_string(&cfg, "uas_caa_id", &value))
+    const char *uas_caa_id_cfg;
+
+    if (config_lookup_string(&cfg, "uas_caa_id", &uas_caa_id_cfg))
     {
-        uasData->BasicID[BASIC_ID_POS_ONE].UAType = value;
-        strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, value,
-                MINIMUM(sizeof(value), sizeof(uasData->BasicID[BASIC_ID_POS_ONE].UASID)));
+        strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, uas_caa_id_cfg, strlen(uas_caa_id_cfg));
     }
     else
     {
@@ -109,9 +162,12 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
     char description[] = "Drone de TESTE ID";
-    if (config_lookup_string(&cfg, "description", &value))
+
+    const char *description_cfg;
+    if (config_lookup_string(&cfg, "description", &description_cfg))
     {
-        strncpy(uasData->SelfID.Desc, value, MINIMUM(sizeof(value), sizeof(uasData->SelfID.Desc)));
+        strncpy(uasData->SelfID.Desc, description_cfg, strlen(description_cfg));
+        printf("%s", description_cfg);
     }
     else
     {
@@ -136,15 +192,16 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
 
     uasData->OperatorID.OperatorIdType = ODID_OPERATOR_ID;
     char operatorId[] = "FIN87astrdge12k8";
-    if (config_lookup_string(&cfg, "operatorID", &value))
+    const char *operatorID_cfg;
+
+    if (config_lookup_string(&cfg, "operatorID", &operatorID_cfg))
     {
-        strncpy(uasData->OperatorID.OperatorId, value, MINIMUM(sizeof(value), sizeof(uasData->OperatorID.OperatorId)));
+        strncpy(uasData->OperatorID.OperatorId, operatorID_cfg, strlen(operatorID_cfg));
     }
     else
     {
         strncpy(uasData->OperatorID.OperatorId, operatorId, MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
     }
-
 }
 
 // Preenche os dados de GPS
