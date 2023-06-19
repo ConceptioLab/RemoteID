@@ -7,6 +7,8 @@
 #include <time.h>
 #include <semaphore.h>
 #include <signal.h>
+#include <libconfig.h>
+
 #include <sys/param.h>
 #include <sys/resource.h>
 
@@ -31,6 +33,8 @@ int first = 0;
 
 int device_descriptor = 0;
 
+#define MAX_STRING_LENGTH 100
+
 // Cria um número aleatório dentro de um tamanho.
 float randomInRange(float min, float max)
 {
@@ -41,17 +45,49 @@ float randomInRange(float min, float max)
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
     srand(time(0));
+    config_t cfg;
+    config_init(&cfg);
+    if (!config_read_file(&cfg, "../config.cfg"))
+    {
+        fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
+                config_error_line(&cfg), config_error_text(&cfg));
+        config_destroy(&cfg);
+    }
 
     uasData->BasicID[BASIC_ID_POS_ZERO].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
     uasData->BasicID[BASIC_ID_POS_ZERO].IDType = ODID_IDTYPE_SERIAL_NUMBER;
+
     char uas_id[] = "555555555555555555AB";
+    char *value;
+    if (config_lookup_string(&cfg, "uas_id", &value))
+    {
+        strncpy(uas_id, value, sizeof(uas_id));
+    }
     strncpy(uasData->BasicID[BASIC_ID_POS_ZERO].UASID, uas_id, MINIMUM(sizeof(uas_id), sizeof(uasData->BasicID[BASIC_ID_POS_ZERO].UASID)));
 
-    uasData->BasicID[BASIC_ID_POS_ONE].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
+    if (config_lookup_string(&cfg, "UAType", &value))
+    {
+        uasData->BasicID[BASIC_ID_POS_ONE].UAType = value;
+    }
+    else
+    {
+        uasData->BasicID[BASIC_ID_POS_ONE].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
+    }
+
     uasData->BasicID[BASIC_ID_POS_ONE].IDType = ODID_IDTYPE_SPECIFIC_SESSION_ID;
     char uas_caa_id[] = "7272727727272772720A";
-    strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, uas_caa_id,
-            MINIMUM(sizeof(uas_caa_id), sizeof(uasData->BasicID[BASIC_ID_POS_ONE].UASID)));
+
+    if (config_lookup_string(&cfg, "uas_caa_id", &value))
+    {
+        uasData->BasicID[BASIC_ID_POS_ONE].UAType = value;
+        strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, value,
+                MINIMUM(sizeof(value), sizeof(uasData->BasicID[BASIC_ID_POS_ONE].UASID)));
+    }
+    else
+    {
+        strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, uas_caa_id,
+                MINIMUM(sizeof(uas_caa_id), sizeof(uasData->BasicID[BASIC_ID_POS_ONE].UASID)));
+    }
 
     uasData->Auth[0].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;
     uasData->Auth[0].DataPage = 0;
@@ -73,7 +109,14 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
     char description[] = "Drone de TESTE ID";
-    strncpy(uasData->SelfID.Desc, description, MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
+    if (config_lookup_string(&cfg, "description", &value))
+    {
+        strncpy(uasData->SelfID.Desc, value, MINIMUM(sizeof(value), sizeof(uasData->SelfID.Desc)));
+    }
+    else
+    {
+        strncpy(uasData->SelfID.Desc, description, MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
+    }
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
@@ -93,8 +136,15 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
 
     uasData->OperatorID.OperatorIdType = ODID_OPERATOR_ID;
     char operatorId[] = "FIN87astrdge12k8";
-    strncpy(uasData->OperatorID.OperatorId, operatorId,
-            MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
+    if (config_lookup_string(&cfg, "operatorID", &value))
+    {
+        strncpy(uasData->OperatorID.OperatorId, value, MINIMUM(sizeof(value), sizeof(uasData->OperatorID.OperatorId)));
+    }
+    else
+    {
+        strncpy(uasData->OperatorID.OperatorId, operatorId, MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
+    }
+
 }
 
 // Preenche os dados de GPS

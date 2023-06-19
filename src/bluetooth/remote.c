@@ -18,20 +18,8 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
         {
                 switch (*argv[i])
                 {
-                case 'b':
-                        config->use_beacon = true;
-                        break;
                 case 'l':
                         config->use_btl = true;
-                        break;
-                case '4':
-                        config->use_bt4 = true;
-                        break;
-                case '5':
-                        config->use_bt5 = true;
-                        break;
-                case 'p':
-                        config->use_packs = true;
                         break;
                 case 'g':
                         config->use_gps = true;
@@ -44,6 +32,7 @@ static void parse_command_line(int argc, char *argv[], struct config_data *confi
                 }
         }
 }
+
 static void sig_handler_main(int signo)
 {
         if (signo == SIGINT || signo == SIGSTOP || signo == SIGKILL || signo == SIGTERM)
@@ -51,6 +40,7 @@ static void sig_handler_main(int signo)
                 kill_program = true;
         }
 }
+
 int main(int argc, char *argv[])
 {
         parse_command_line(argc, argv, &config);
