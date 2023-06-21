@@ -465,7 +465,7 @@ void scan_le()
 	// Tratamento de dados json.
 
 	int i = 0;
-	while (i < 35)
+	while (i < 20)
 	{
 		if (kill_program)
 			break;
