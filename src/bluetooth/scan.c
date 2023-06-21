@@ -333,6 +333,7 @@ void advert_odid(evt_le_meta_event *event, int *adverts)
 		    (advert->data[3] == 0xFF))
 		{
 			++(*adverts);
+			//Aqui seria onde melhorar para ao invés de tratar imediatamente, incrementar uma lista com todos os dados a serem decodificados e o fazer dinamicamente por thread.
 			parse_odid(mac, &advert->data[odid_offset], advert->length - odid_offset, 0, "BlueZ", NULL);
 		}
 
