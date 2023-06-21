@@ -597,7 +597,7 @@ void advertise_le()
     hci_le_set_advertising_enable(device_descriptor);
     printf("Advertising...\n");
     int i = 0;
-    while (i < 50)
+    while (i < 40)
     {
         send_single_messages(&uasData, &config);
         i++;
