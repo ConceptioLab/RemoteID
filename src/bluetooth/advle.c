@@ -88,7 +88,8 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     config_t cfg;
     config_init(&cfg);
     char currentPath[1024];
-    if (realpath(__FILE__, currentPath) == NULL) {
+    if (realpath(__FILE__, currentPath) == NULL)
+    {
         perror("Erro ao obter o caminho absoluto do arquivo");
     }
 
@@ -98,7 +99,6 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     // Concatenar o nome do arquivo de configuração ao diretório pai
     char configFilePath[1024];
     snprintf(configFilePath, sizeof(configFilePath), "%s/uav.cfg", parentDir);
-
 
     if (!config_read_file(&cfg, configFilePath))
     {
@@ -147,17 +147,17 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     uasData->Auth[0].LastPageIndex = 2;
     uasData->Auth[0].Length = 63;
     uasData->Auth[0].Timestamp = 28000000;
-    char auth0_data[] = "15648975321685249";
+    char auth0_data[] = "0";
     memcpy(uasData->Auth[0].AuthData, auth0_data, MINIMUM(sizeof(auth0_data), sizeof(uasData->Auth[0].AuthData)));
 
     uasData->Auth[1].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;
     uasData->Auth[1].DataPage = 1;
-    char auth1_data[] = "36289078124690153452713";
+    char auth1_data[] = "0";
     memcpy(uasData->Auth[1].AuthData, auth1_data, MINIMUM(sizeof(auth1_data), sizeof(uasData->Auth[1].AuthData)));
 
     uasData->Auth[2].AuthType = ODID_AUTH_UAS_ID_SIGNATURE;
     uasData->Auth[2].DataPage = 2;
-    char auth2_data[] = "12345678901234567890123";
+    char auth2_data[] = "0";
     memcpy(uasData->Auth[2].AuthData, auth2_data, MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
@@ -167,7 +167,6 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     if (config_lookup_string(&cfg, "description", &description_cfg))
     {
         strncpy(uasData->SelfID.Desc, description_cfg, strlen(description_cfg));
-        printf("%s", description_cfg);
     }
     else
     {
@@ -176,7 +175,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
-    if (config->use_gps == false)
+    if (config->use_gps == false) // Generate a location for testing
     {
         uasData->System.OperatorLatitude = uasData->Location.Latitude - randomInRange(23.206495527245156 - 0.001, 23.206495527245156 + 0.001);
         uasData->System.OperatorLongitude = uasData->Location.Longitude - randomInRange(45.87633407660736 - 0.001, 45.87633407660736 + 0.001); //-23.206495527245156, -45.87633407660736
@@ -188,7 +187,8 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     uasData->System.CategoryEU = ODID_CATEGORY_EU_OPEN;
     uasData->System.ClassEU = ODID_CLASS_EU_CLASS_1;
     uasData->System.OperatorAltitudeGeo = 20.5f;
-    uasData->System.Timestamp = 28056789;
+
+    uasData->System.Timestamp = (unsigned)time(NULL);
 
     uasData->OperatorID.OperatorIdType = ODID_OPERATOR_ID;
     char operatorId[] = "FIN87astrdge12k8";
@@ -459,17 +459,21 @@ static void hci_le_remove_advertising_set(int dd, uint8_t set)
     send_cmd(dd, ogf, ocf, buf, sizeof(buf));
 }
 
+int get_dev_id()
+{
+    int id = hci_devid("hci0");
+    if (id < 0)
+        id = hci_get_route(NULL);
+    return id;
+}
+
 // Ativa o bluetooth para envio.
 int open_hci_device()
 {
     struct hci_filter flt; // Host Controller Interface filter
     uint8_t mac[6] = {0};
 
-    int dev_id = hci_devid("hci0");
-    if (dev_id < 0)
-        dev_id = hci_get_route(NULL);
-
-    int dd = hci_open_dev(dev_id);
+    int dd = hci_open_dev(get_dev_id());
     if (dd < 0)
     {
         perror("Device open failed");
@@ -494,11 +498,7 @@ int get_mac()
     struct hci_dev_info dev_info;
     uint8_t mac[6] = {0};
 
-    int dev_id = hci_devid("hci0");
-    if (dev_id < 0)
-        dev_id = hci_get_route(NULL);
-
-    if (hci_devinfo(dev_id, &dev_info) < 0)
+    if (hci_devinfo(get_dev_id(), &dev_info) < 0)
     {
         perror("Failed to get device info");
         return 1;
