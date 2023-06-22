@@ -83,7 +83,10 @@ int main(int argc, char *argv[])
                 {
                         if (kill_program)
                                 break;
-                        advertise_le();
+                        if (config.use_btl)
+                        {
+                                advertise_le();
+                        }
                         if (config.use_scan)
                         {
                                 scan_le();
@@ -104,7 +107,10 @@ int main(int argc, char *argv[])
                 {
                         if (kill_program)
                                 break;
-                        advertise_le();
+                        if (config.use_btl)
+                        {
+                                advertise_le();
+                        }
                         if (config.use_scan)
                         {
                                 scan_le();
