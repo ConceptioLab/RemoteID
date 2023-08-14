@@ -15,11 +15,6 @@ Os tipos de comunicação irão ficar separados em **2 pastas** dentro de *src*,
 ```bash
 sudo apt-get install --reinstall -y bluez libgps-dev libconfig-dev libbluetooth-dev
 sudo gcc ./src/bluetooth/remote.c ./src/bluetooth/advle.c ./src/bluetooth/scan.c $(pkg-config --libs --cflags bluez libgps libconfig) -lm -pthread -o remote
-```
-
-Executar o arquivo
-
-```bash
 sudo ./remote "arg"
 ```
 
