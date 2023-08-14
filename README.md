@@ -32,3 +32,12 @@ Exemplo:
 sudo ./remote l
 sudo ./remote l g s
 ```
+## Docker
+
+No docker, lembre de iniciar o container com --network host.
+
+EXEMPLO: 
+
+```bash 
+sudo docker run -it --network host -v /dev:/dev -v /opt/RemoteID:/app -p 8000-8050:8000-8050 sua/imagem:docker
+```
