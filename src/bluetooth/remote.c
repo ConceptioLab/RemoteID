@@ -1,14 +1,9 @@
 #include <errno.h>
-#include <thread>
+
 #include "../include/gpsmod.h"
 
 #include "advle.h"
 #include "scan.h"
-
-#include "rclcpp/rclcpp.hpp"
-#include "std_msgs/String.h"
-
-#include <sstream>
 
 bool kill_program = false;
 
@@ -46,8 +41,6 @@ static void sig_handler_main(int signo)
         }
 }
 
-
-
 int main(int argc, char *argv[])
 {
         parse_command_line(argc, argv, &config);
@@ -57,11 +50,6 @@ int main(int argc, char *argv[])
         // Setting bluetooth for advertising
         const int device = open_hci_device();
         init_bluetooth();
-
-	ros::init(argc, argv, "remoteID");
-        ros::NodeHandle n;
-        ros::Publisher chatter_pub = n.advertise<std_msgs::String>("conceptio/unit/air/simulation/drone/remoteid", 1000);
-        ros::Rate loop_rate(10);
 
         signal(SIGINT, sig_handler_main);
         signal(SIGKILL, sig_handler_main);
@@ -83,9 +71,8 @@ int main(int argc, char *argv[])
                 struct gps_loop_args args;
                 args.gpsdata = &gpsdata;
                 args.uasData = &uasData;
-		void * data = (void *)&args;
 
-		int ret = pthread_create(&gps_thread, NULL, &gps_thread_function, data);
+                int ret = pthread_create(&gps_thread, NULL, (void *)&gps_thread_function, &args);
                 if (ret != 0)
                 {
                         fprintf(stderr, "Falha ao criar a pthread.\n");
@@ -128,19 +115,8 @@ int main(int argc, char *argv[])
                         {
                                 scan_le();
                         }
-			if (ros::ok())
-                        {
-                                std_msgs::String msg;
-                                std::stringstream ss;
-                                ss << &uasData.SelfID;
-                                msg.data = ss.str();
-                                ROS_INFO("%s", msg.data.c_str());
-
-                                chatter_pub.publish(msg);
-                        }
                 }
         }
 
         cleanup(EXIT_SUCCESS);
 }
-
