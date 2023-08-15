@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/remoteros.dir/src/bluetooth/remoteros.cpp.o CMakeFiles/remoteros.dir/src/bluetooth/advle.c.o CMakeFiles/remoteros.dir/src/bluetooth/scan.c.o -o remoteros  -lbluetooth -lgps -lconfig -lm -pthread 
