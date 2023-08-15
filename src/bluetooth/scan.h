@@ -1,3 +1,9 @@
+#ifndef SCAN_H
+#define SCAN_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <sys/types.h>
 
@@ -25,3 +31,8 @@ void scan_le();
 int mac_index(uint8_t *, struct UAV_RID *);
 void dump(char *, uint8_t *, int);
 char *printable_text(uint8_t *, int);
+
+#ifdef __cplusplus
+}
+#endif
+#endif

@@ -275,7 +275,6 @@ static void send_cmd(int dd, uint8_t ogf, uint16_t ocf, uint8_t *cmd_data, int l
         return;
     }
 }
-
 // Mostra o endereço MAC aleatório no terminal.
 void printMACAddress(const uint8_t *mac)
 {
@@ -541,10 +540,11 @@ void cleanup(int exit_code)
     exit(exit_code);
 }
 
-void *gps_thread_function(struct gps_loop_args *args)
+void *gps_thread_function(void * args)
 {
-    struct gps_data_t *gpsdata = args->gpsdata;
-    struct ODID_UAS_Data *uasData = args->uasData;
+    struct gps_loop_args* args2 = (struct gps_loop_args*)(args);
+    struct gps_data_t *gpsdata = args2->gpsdata;
+    struct ODID_UAS_Data *uasData = args2->uasData;
     char gpsd_message[GPS_JSON_RESPONSE_MAX];
 
     // Inicializa a conexão com o GPS
@@ -585,9 +585,10 @@ void *gps_thread_function(struct gps_loop_args *args)
     gps_stream(gpsdata, WATCH_DISABLE, NULL);
     gps_close(gpsdata);
 
-    args->exit_status = 0;
-    pthread_exit(&args->exit_status);
+    args2->exit_status = 0;
+    pthread_exit(&args2->exit_status);
 }
+
 
 void advertise_le()
 {

@@ -6,11 +6,18 @@
 #include "./gpsd/libgps.h"
 #include "opendroneid.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MAX_GPS_WAIT_RETRIES 60 // 60 tries at 0.5 seconds a try is a 30 second timeout
 #define MAX_GPS_READ_RETRIES 5
 #define GPS_WAIT_TIME_MICROSECS 500000 // 1/2 second
 
 int init_gps(struct fixsource_t* source, struct gps_data_t* gpsdata);
 void process_gps_data(struct gps_data_t* gpsdata, struct ODID_UAS_Data *uasData);
-
+#ifdef __cplusplus
+}
 #endif
+#endif
+
