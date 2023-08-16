@@ -41,3 +41,15 @@ EXEMPLO:
 ```bash 
 sudo docker run -it --network host -v /dev:/dev -v /opt/RemoteID:/app -p 8000-8050:8000-8050 sua/imagem:docker
 ```
+
+## CMakeList
+
+Criar uma pasta chamada "build", entrar nela e rodar os comandos:
+
+```bash
+cmake ..
+make
+```
+Caso queira rodar sem o ros, modificar CMakeList.txt para que remoteros.cpp -> remote.cpp, remover: ```find_package(rclcpp REQUIRED), find_package(rclcpp_components REQUIRED), ${ROS_INCLUDE_DIR}```.
+
+De preferência, mude a linha: ```add_executable(remoteros ${SOURCES})``` -> ```add_executable(remote ${SOURCES})```
