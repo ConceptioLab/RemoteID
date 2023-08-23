@@ -1,0 +1,8 @@
+{
+        "files.associations": {
+                "*.embeddedhtml": "html",
+                "remote.h": "c",
+                "opendroneid.h": "c",
+                "gpsmod.h": "c"
+        }
+}
