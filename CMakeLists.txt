@@ -3,7 +3,7 @@ project(RemoteID)
 
 # Especifique as fontes do seu projeto
 set(SOURCES
-    src/bluetooth/remoteros.cpp
+    src/bluetooth/remote.cpp
     src/bluetooth/advle.c
     src/bluetooth/scan.c
 )
@@ -40,11 +40,11 @@ target_include_directories(remoteros PRIVATE
     ${BLUETOOTH_INCLUDE_DIRS}
     ${GPS_INCLUDE_DIRS}
     ${CONFIG_INCLUDE_DIRS}
-    ${ROS_INCLUDE_DIRS}
+#    ${ROS_INCLUDE_DIRS}
 )
 
 # Especifique as bibliotecas a serem vinculadas
-target_link_libraries(remoteros
+target_link_libraries(remote
     ${BLUETOOTH_LIBRARIES}
     ${GPS_LIBRARIES}
     ${CONFIG_LIBRARIES}
