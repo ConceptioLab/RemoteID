@@ -14,6 +14,7 @@
 
 import rclpy
 from rclpy.node import Node
+import json
 
 from std_msgs.msg import String
 
@@ -28,11 +29,16 @@ class MinimalPublisher(Node):
         self.i = 0
 
     def timer_callback(self):
+        data = self.read_json_file("../../../../uav.json") 
         msg = String()
-        msg.data = 'Hello World: %d' % self.i
+        msg.data = json.dumps(data) 
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing: "%s"' % msg.data)
-        self.i += 1
+        self.get_logger().info('Publishing JSON: "%s"' % msg.data)
+        
+    def read_json_file(self, file_path):
+        with open(file_path, 'r') as json_file:
+            data = json.load(json_file)
+            return data
 
 
 def main(args=None):
