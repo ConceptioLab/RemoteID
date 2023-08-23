@@ -34,6 +34,9 @@ Exemplo:
 sudo ./remote l
 sudo ./remote l g s
 ```
+
+GPS não funcionando? Verifique se as conexões estão corretas e se o serial está sendo acessado. (Caso não, ative pelo raspi-config)
+
 ## Docker
 
 No docker, lembre de iniciar o container com --network host.
