@@ -1,0 +1,4 @@
+[console_scripts]
+listener = remoteid_pubsub.subscriber_member_function:main
+talker = remoteid_pubsub.publisher_member_function:main
+

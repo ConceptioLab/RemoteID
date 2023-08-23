@@ -1,0 +1,22 @@
+[0.342s] Invoking command in '/app/ros2_ws/src/remoteid_pubsub': PYTHONPATH=/app/ros2_ws/build/remoteid_pubsub/prefix_override:/app/ros2_ws/install/remoteid_pubsub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/remoteid_pubsub build --build-base /app/ros2_ws/build/remoteid_pubsub/build install --record /app/ros2_ws/build/remoteid_pubsub/install.log --single-version-externally-managed
+[0.464s] running egg_info
+[0.464s] writing ../../build/remoteid_pubsub/remoteid_pubsub.egg-info/PKG-INFO
+[0.464s] writing dependency_links to ../../build/remoteid_pubsub/remoteid_pubsub.egg-info/dependency_links.txt
+[0.464s] writing entry points to ../../build/remoteid_pubsub/remoteid_pubsub.egg-info/entry_points.txt
+[0.464s] writing requirements to ../../build/remoteid_pubsub/remoteid_pubsub.egg-info/requires.txt
+[0.464s] writing top-level names to ../../build/remoteid_pubsub/remoteid_pubsub.egg-info/top_level.txt
+[0.466s] reading manifest file '../../build/remoteid_pubsub/remoteid_pubsub.egg-info/SOURCES.txt'
+[0.467s] writing manifest file '../../build/remoteid_pubsub/remoteid_pubsub.egg-info/SOURCES.txt'
+[0.467s] running build
+[0.467s] running build_py
+[0.467s] running install
+[0.468s] running install_lib
+[0.469s] running install_data
+[0.469s] running install_egg_info
+[0.470s] removing '/app/ros2_ws/install/remoteid_pubsub/lib/python3.10/site-packages/remoteid_pubsub-0.0.0-py3.10.egg-info' (and everything under it)
+[0.470s] Copying ../../build/remoteid_pubsub/remoteid_pubsub.egg-info to /app/ros2_ws/install/remoteid_pubsub/lib/python3.10/site-packages/remoteid_pubsub-0.0.0-py3.10.egg-info
+[0.472s] running install_scripts
+[0.485s] Installing listener script to /app/ros2_ws/install/remoteid_pubsub/lib/remoteid_pubsub
+[0.485s] Installing talker script to /app/ros2_ws/install/remoteid_pubsub/lib/remoteid_pubsub
+[0.485s] writing list of installed files to '/app/ros2_ws/build/remoteid_pubsub/install.log'
+[0.500s] Invoked command in '/app/ros2_ws/src/remoteid_pubsub' returned '0': PYTHONPATH=/app/ros2_ws/build/remoteid_pubsub/prefix_override:/app/ros2_ws/install/remoteid_pubsub/lib/python3.10/site-packages:${PYTHONPATH} /usr/bin/python3 setup.py egg_info --egg-base ../../build/remoteid_pubsub build --build-base /app/ros2_ws/build/remoteid_pubsub/build install --record /app/ros2_ws/build/remoteid_pubsub/install.log --single-version-externally-managed
