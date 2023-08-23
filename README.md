@@ -12,10 +12,10 @@ Os tipos de comunicação irão ficar separados em **2 pastas** dentro de *src*,
 
 # Executando Remote ID linux - Advertise e Scan
 
-Lembre-se de entrar na pasta do RemoteID, executar esses comandos e depois caso queira, usar o cmake no futuro.
+Lembre-se de entrar na pasta do RemoteID, e executar ao menos o install caso queira usar o cmake.
 
 ```bash
-sudo apt-get install --reinstall -y bluez libgps-dev libconfig-dev libbluetooth-dev
+sudo apt-get install --reinstall -y bluez libgps-dev libconfig-dev libbluetooth-dev gpsd
 sudo gcc ./src/bluetooth/remote.c ./src/bluetooth/advle.c ./src/bluetooth/scan.c $(pkg-config --libs --cflags bluez libgps libconfig) -lm -pthread -o remote
 sudo ./remote "arg"
 ```
