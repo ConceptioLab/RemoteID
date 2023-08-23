@@ -12,6 +12,8 @@ Os tipos de comunicação irão ficar separados em **2 pastas** dentro de *src*,
 
 # Executando Remote ID linux - Advertise e Scan
 
+Lembre-se de entrar na pasta do RemoteID, executar esses comandos e depois caso queira, usar o cmake no futuro.
+
 ```bash
 sudo apt-get install --reinstall -y bluez libgps-dev libconfig-dev libbluetooth-dev
 sudo gcc ./src/bluetooth/remote.c ./src/bluetooth/advle.c ./src/bluetooth/scan.c $(pkg-config --libs --cflags bluez libgps libconfig) -lm -pthread -o remote
@@ -44,6 +46,7 @@ sudo docker run -it --network host -v /dev:/dev -v /opt/RemoteID:/app -p 8000-80
 
 ## CMakeList
 
+Lembre-se de entrar na pasta do RemoteID, executar os comandos do linux e depois caso queira, usar o cmake no futuro.
 Criar uma pasta chamada "build", entrar nela e rodar os comandos:
 
 ```bash

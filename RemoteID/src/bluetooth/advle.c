@@ -22,6 +22,7 @@
 
 #include "../include/opendroneid.h"
 #include "../include/opendroneid.c"
+#include "../include/cJSON/cJSON.h"
 
 #include "remote.h"
 
@@ -85,6 +86,10 @@ ODID_uatype_t convertIntToUAType(int value)
 // Preenche os dados da nave
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
+    char json[1024] = "", string[1024];
+    sprintf(string, "{");
+    strcat(json, string);
+
     config_t cfg;
     config_init(&cfg);
     char currentPath[1024];
@@ -107,8 +112,6 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
         return;
     }
 
-    uasData->BasicID[BASIC_ID_POS_ZERO].IDType = ODID_IDTYPE_SERIAL_NUMBER;
-
     char uas_id[] = "555555555555555555AB";
     const char *uas_id_cfg;
     if (config_lookup_string(&cfg, "uas_id", &uas_id_cfg))
@@ -126,12 +129,11 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     {
         uasData->BasicID[BASIC_ID_POS_ONE].UAType = ODID_UATYPE_HELICOPTER_OR_MULTIROTOR;
     }
-
     uasData->BasicID[BASIC_ID_POS_ONE].IDType = ODID_IDTYPE_SPECIFIC_SESSION_ID;
+
     char uas_caa_id[] = "7272727727272772720A";
 
     const char *uas_caa_id_cfg;
-
     if (config_lookup_string(&cfg, "uas_caa_id", &uas_caa_id_cfg))
     {
         strncpy(uasData->BasicID[BASIC_ID_POS_ONE].UASID, uas_caa_id_cfg, strlen(uas_caa_id_cfg));
@@ -161,6 +163,9 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     memcpy(uasData->Auth[2].AuthData, auth2_data, MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
+    sprintf(string, "\"description_type\" : \"%d\",", (int)uasData->SelfID.DescType);
+    strcat(json, string);
+
     char description[] = "Drone de TESTE ID";
 
     const char *description_cfg;
@@ -172,6 +177,9 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     {
         strncpy(uasData->SelfID.Desc, description, MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
     }
+    sprintf(string, "\"description\" : \"%s\",", uasData->SelfID.Desc);
+    strcat(json, string);
+    
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
@@ -202,6 +210,34 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     {
         strncpy(uasData->OperatorID.OperatorId, operatorId, MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
     }
+    sprintf(string, "\"operator_id\" : \"%s\"}", uasData->OperatorID.OperatorId);
+    strcat(json, string);
+    printf("%s\n", json);
+    // Crie um objeto JSON raiz
+    cJSON *root = cJSON_CreateObject();
+
+    // Adicione os valores das variáveis ao objeto JSON
+    cJSON_AddStringToObject(root, "uas_id", uas_id);
+    cJSON_AddNumberToObject(root, "UAType", uatype_int);
+    cJSON_AddStringToObject(root, "uas_caa_id", uas_caa_id);
+    cJSON_AddStringToObject(root, "description", description);
+    cJSON_AddStringToObject(root, "operatorID", operatorID_cfg);
+
+    // Converta o objeto JSON em uma string formatada
+    char *json_str = cJSON_Print(root);
+
+    // Salve a string JSON em um arquivo .json
+    FILE *json_file = fopen("uav.json", "w");
+    if (json_file) {
+        fprintf(json_file, "%s\n", json_str);
+        fclose(json_file);
+    } else {
+        printf("Erro ao abrir o arquivo para escrita.\n");
+    }
+
+    // Libere os recursos alocados pela biblioteca cJSON
+    cJSON_Delete(root);
+    free(json_str);
 }
 
 // Preenche os dados de GPS
@@ -540,9 +576,9 @@ void cleanup(int exit_code)
     exit(exit_code);
 }
 
-void *gps_thread_function(void * args)
+void *gps_thread_function(void *args)
 {
-    struct gps_loop_args* args2 = (struct gps_loop_args*)(args);
+    struct gps_loop_args *args2 = (struct gps_loop_args *)(args);
     struct gps_data_t *gpsdata = args2->gpsdata;
     struct ODID_UAS_Data *uasData = args2->uasData;
     char gpsd_message[GPS_JSON_RESPONSE_MAX];
@@ -589,14 +625,13 @@ void *gps_thread_function(void * args)
     pthread_exit(&args2->exit_status);
 }
 
-
 void advertise_le()
 {
     hci_le_set_advertising_parameters(device_descriptor, 100);
 
     // Inicia o advertise LE
     hci_le_set_advertising_enable(device_descriptor);
-    printf("Advertising...\n");
+    // printf("Advertising...\n");
     int i = 0;
     while (i < 40)
     {

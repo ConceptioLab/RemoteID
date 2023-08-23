@@ -36,11 +36,10 @@ pkg_check_modules(CONFIG REQUIRED libconfig)
 add_executable(remoteros ${SOURCES})
 
 # Inclua diretórios de cabeçalho
-target_include_directories(remoteros PRIVATE
+target_include_directories(remote PRIVATE
     ${BLUETOOTH_INCLUDE_DIRS}
     ${GPS_INCLUDE_DIRS}
     ${CONFIG_INCLUDE_DIRS}
-#    ${ROS_INCLUDE_DIRS}
 )
 
 # Especifique as bibliotecas a serem vinculadas
