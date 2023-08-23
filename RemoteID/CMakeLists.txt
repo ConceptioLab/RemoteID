@@ -33,7 +33,7 @@ pkg_check_modules(GPS REQUIRED libgps)
 pkg_check_modules(CONFIG REQUIRED libconfig)
 
 # Adicione o executável
-add_executable(remoteros ${SOURCES})
+add_executable(remote ${SOURCES})
 
 # Inclua diretórios de cabeçalho
 target_include_directories(remote PRIVATE

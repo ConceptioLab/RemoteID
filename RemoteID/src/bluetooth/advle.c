@@ -86,10 +86,6 @@ ODID_uatype_t convertIntToUAType(int value)
 // Preenche os dados da nave
 void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config)
 {
-    char json[1024] = "", string[1024];
-    sprintf(string, "{");
-    strcat(json, string);
-
     config_t cfg;
     config_init(&cfg);
     char currentPath[1024];
@@ -163,8 +159,6 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     memcpy(uasData->Auth[2].AuthData, auth2_data, MINIMUM(sizeof(auth2_data), sizeof(uasData->Auth[2].AuthData)));
 
     uasData->SelfID.DescType = ODID_DESC_TYPE_TEXT;
-    sprintf(string, "\"description_type\" : \"%d\",", (int)uasData->SelfID.DescType);
-    strcat(json, string);
 
     char description[] = "Drone de TESTE ID";
 
@@ -177,9 +171,6 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     {
         strncpy(uasData->SelfID.Desc, description, MINIMUM(sizeof(description), sizeof(uasData->SelfID.Desc)));
     }
-    sprintf(string, "\"description\" : \"%s\",", uasData->SelfID.Desc);
-    strcat(json, string);
-    
 
     uasData->System.OperatorLocationType = ODID_OPERATOR_LOCATION_TYPE_TAKEOFF;
     uasData->System.ClassificationType = ODID_CLASSIFICATION_TYPE_EU;
@@ -210,9 +201,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     {
         strncpy(uasData->OperatorID.OperatorId, operatorId, MINIMUM(sizeof(operatorId), sizeof(uasData->OperatorID.OperatorId)));
     }
-    sprintf(string, "\"operator_id\" : \"%s\"}", uasData->OperatorID.OperatorId);
-    strcat(json, string);
-    printf("%s\n", json);
+
     // Crie um objeto JSON raiz
     cJSON *root = cJSON_CreateObject();
 
@@ -227,7 +216,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     char *json_str = cJSON_Print(root);
 
     // Salve a string JSON em um arquivo .json
-    FILE *json_file = fopen("uav.json", "w");
+    FILE *json_file = fopen("../../uav.json", "w");
     if (json_file) {
         fprintf(json_file, "%s\n", json_str);
         fclose(json_file);
