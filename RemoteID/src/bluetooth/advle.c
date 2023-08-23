@@ -216,7 +216,7 @@ void fill_example_data(struct ODID_UAS_Data *uasData, struct config_data *config
     char *json_str = cJSON_Print(root);
 
     // Salve a string JSON em um arquivo .json
-    FILE *json_file = fopen("../../uav.json", "w");
+    FILE *json_file = fopen("/app/RemoteID/uav.json", "w");
     if (json_file) {
         fprintf(json_file, "%s\n", json_str);
         fclose(json_file);

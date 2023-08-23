@@ -31,7 +31,7 @@ int init_gps(struct fixsource_t *source, struct gps_data_t *gpsdata)
 void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData)
 {
     // Ler o arquivo JSON existente
-    FILE *json_file = fopen("../../uav.json", "r");
+    FILE *json_file = fopen("/app/RemoteID/uav.json", "r");
     if (!json_file)
     {
         printf("Erro ao abrir o arquivo JSON para leitura.\n");
@@ -269,7 +269,7 @@ void process_gps_data(struct gps_data_t *gpsdata, struct ODID_UAS_Data *uasData)
     }
 
     // Salvar o objeto JSON atualizado de volta no arquivo
-    json_file = fopen("../../uav.json", "w");
+    json_file = fopen("/app/RemoteID/uav.json", "w");
     if (json_file)
     {
         char *json_str = cJSON_Print(root);

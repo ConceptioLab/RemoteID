@@ -29,7 +29,7 @@ class MinimalPublisher(Node):
         self.i = 0
 
     def timer_callback(self):
-        data = self.read_json_file("../../../../uav.json") 
+        data = self.read_json_file("/app/RemoteID/uav.json") 
         msg = String()
         msg.data = json.dumps(data) 
         self.publisher_.publish(msg)
