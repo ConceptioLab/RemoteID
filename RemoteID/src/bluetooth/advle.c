@@ -573,7 +573,7 @@ void *gps_thread_function(void *args)
     char gpsd_message[GPS_JSON_RESPONSE_MAX];
 
     // Inicializa a conexão com o GPS
-    if (gps_open("localhost", "2948", gpsdata) < 0)
+    if (gps_open("localhost", "2947", gpsdata) < 0)
     {
         fprintf(stderr, "Falha ao abrir a conexão com o GPS.\n");
         return NULL;
