@@ -29,7 +29,7 @@ class MinimalPublisher(Node):
         self.i = 0
 
     def timer_callback(self):
-        data = self.read_json_file("/app/RemoteID/uav.json") 
+        data = self.read_json_file("/opt/conceptio/remote_id/uav.json") 
         msg = Remoteid()
         msg.uas_id = data["uas_id"]
         msg.ua_type = data["UAType"]
