@@ -16,24 +16,44 @@ import rclpy
 from rclpy.node import Node
 import json
 
-from std_msgs.msg import String
+from conceptio_msgs.msg import Remoteid
 
 
 class MinimalPublisher(Node):
 
     def __init__(self):
         super().__init__('minimal_publisher')
-        self.publisher_ = self.create_publisher(String, 'topic', 10)
+        self.publisher_ = self.create_publisher(Remoteid, 'conceptio/unit/air/simulation/remoteid', 10)
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
         self.i = 0
 
     def timer_callback(self):
-        data = self.read_json_file("/app/RemoteID/uav.json") 
-        msg = String()
-        msg.data = json.dumps(data) 
+        data = self.read_json_file("/opt/conceptio/remote_id/uav.json") 
+        msg = Remoteid()
+        msg.uas_id = data["uas_id"]
+        msg.ua_type = data["UAType"]
+        msg.uas_caa_id = data["uas_caa_id"]
+        msg.description = data["description"]
+        msg.operator_id = data["operatorID"]
+        
+        coordenadas = data.get("coordinates", {})  # Obtém o dicionário de coordenadas ou um dicionário vazio se não existir
+        msg.latitude = float(coordenadas.get("latitude", 0)) 
+        msg.longitude = float(coordenadas.get("longitude", 0))
+        msg.altitude = float(coordenadas.get("altitude", 0))
+        msg.speed_horizontal = float(coordenadas.get("speed_horizontal", 0))
+        msg.height_type = int(coordenadas.get("height_type", 0))
+        msg.direction = float(coordenadas.get("direction", 0))
+        msg.horiz_accuracy = int(coordenadas.get("horizAccuracy", 0))
+        msg.vert_accuracy = int(coordenadas.get("vertAccuracy", 0))
+        msg.speed_accuracy = int(coordenadas.get("speedAccuracy", 0))
+        msg.speed_vertical = float(coordenadas.get("speed_vertical", 0))
+        msg.altitudegeo = float(coordenadas.get("altitudegeo", 0))
+        msg.altitudebaro = float(coordenadas.get("altitudebaro", 0))
+        msg.height = float(coordenadas.get("height", 0))
+            
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing JSON: "%s"' % msg.data)
+        self.get_logger().info('Publishing JSON: "%s"' % msg.uas_id)
         
     def read_json_file(self, file_path):
         with open(file_path, 'r') as json_file:

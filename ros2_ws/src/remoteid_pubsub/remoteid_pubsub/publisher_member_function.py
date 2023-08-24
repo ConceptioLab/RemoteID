@@ -36,58 +36,21 @@ class MinimalPublisher(Node):
         msg.uas_caa_id = data["uas_caa_id"]
         msg.description = data["description"]
         msg.operator_id = data["operatorID"]
-        if(data["coordinates"]["latitude"]) :
-            msg.latitude = data["coordinates"]["latitude"]
-        else:
-            msg.latitude = 0
-        if(data["coordinates"]["longitude"]) :
-            msg.longitude = data["coordinates"]["longitude"]
-        else:
-            msg.longitude = 0
-        if(data["coordinates"]["altitude"]) :
-            msg.altitude = data["coordinates"]["altitude"]
-        else:
-            msg.altitude = 0
-        if(data["coordinates"]["speed_horizontal"]) :
-            msg.speed_horizontal = data["coordinates"]["speed_horizontal"]
-        else:
-            msg.speed_horizontal = 0
-        if(data["coordinates"]["height_type"]) :
-            msg.height_type = data["coordinates"]["height_type"]
-        else:
-            msg.height_type = 0
-        if(data["coordinates"]["direction"]) :
-            msg.direction = data["coordinates"]["direction"]
-        else:
-            msg.direction = 0
-        if(data["coordinates"]["horizAccuracy"]) :
-            msg.horiz_accuracy = data["coordinates"]["horizAccuracy"]
-        else:
-            msg.horiz_accuracy = 0
-        if(data["coordinates"]["vertAccuracy"]) :
-            msg.vert_accuracy = data["coordinates"]["vertAccuracy"]
-        else:
-            msg.vert_accuracy = 0
-        if(data["coordinates"]["speedAccuracy"]) :
-            msg.speed_accuracy = data["coordinates"]["speedAccuracy"]
-        else:
-            msg.speed_accuracy = 0
-        if(data["coordinates"]["speed_vertical"]) :
-            msg.speed_vertical = data["coordinates"]["speed_vertical"]
-        else:
-            msg.speed_vertical = 0
-        if(data["coordinates"]["altitudegeo"]) :
-            msg.altitudegeo = data["coordinates"]["altitudegeo"]
-        else:
-            msg.altitudegeo = 0
-        if(data["coordinates"]["altitudebaro"]) :
-            msg.altitudebaro = data["coordinates"]["altitudebaro"]
-        else:
-            msg.altitudebaro = 0
-        if(data["coordinates"]["height"]) :
-            msg.height = data["coordinates"]["height"]
-        else:
-            msg.height = 0
+        
+        coordenadas = data.get("coordinates", {})  # Obtém o dicionário de coordenadas ou um dicionário vazio se não existir
+        msg.latitude = float(coordenadas.get("latitude", 0)) 
+        msg.longitude = float(coordenadas.get("longitude", 0))
+        msg.altitude = float(coordenadas.get("altitude", 0))
+        msg.speed_horizontal = float(coordenadas.get("speed_horizontal", 0))
+        msg.height_type = int(coordenadas.get("height_type", 0))
+        msg.direction = float(coordenadas.get("direction", 0))
+        msg.horiz_accuracy = int(coordenadas.get("horizAccuracy", 0))
+        msg.vert_accuracy = int(coordenadas.get("vertAccuracy", 0))
+        msg.speed_accuracy = int(coordenadas.get("speedAccuracy", 0))
+        msg.speed_vertical = float(coordenadas.get("speed_vertical", 0))
+        msg.altitudegeo = float(coordenadas.get("altitudegeo", 0))
+        msg.altitudebaro = float(coordenadas.get("altitudebaro", 0))
+        msg.height = float(coordenadas.get("height", 0))
             
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing JSON: "%s"' % msg.uas_id)
