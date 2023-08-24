@@ -61,17 +61,17 @@ class MinimalPublisher(Node):
         else:
             msg.direction = 0
         if(data["coordinates"]["horizAccuracy"]) :
-            msg.horizAccuracy = data["coordinates"]["horizAccuracy"]
+            msg.horiz_accuracy = data["coordinates"]["horizAccuracy"]
         else:
-            msg.horizAccuracy = 0
+            msg.horiz_accuracy = 0
         if(data["coordinates"]["vertAccuracy"]) :
-            msg.vertAccuracy = data["coordinates"]["vertAccuracy"]
+            msg.vert_accuracy = data["coordinates"]["vertAccuracy"]
         else:
-            msg.vertAccuracy = 0
+            msg.vert_accuracy = 0
         if(data["coordinates"]["speedAccuracy"]) :
-            msg.speedAccuracy = data["coordinates"]["speedAccuracy"]
+            msg.speed_accuracy = data["coordinates"]["speedAccuracy"]
         else:
-            msg.speedAccuracy = 0
+            msg.speed_accuracy = 0
         if(data["coordinates"]["speed_vertical"]) :
             msg.speed_vertical = data["coordinates"]["speed_vertical"]
         else:
@@ -90,7 +90,7 @@ class MinimalPublisher(Node):
             msg.height = 0
             
         self.publisher_.publish(msg)
-        self.get_logger().info('Publishing JSON: "%s"' % msg)
+        self.get_logger().info('Publishing JSON: "%s"' % msg.uas_id)
         
     def read_json_file(self, file_path):
         with open(file_path, 'r') as json_file:

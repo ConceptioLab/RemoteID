@@ -13,6 +13,6 @@ float32 speed_vertical
 float64 height
 float32 direction
 int8 height_type
-int8 horizAccuracy
-int8 vartAccuracy
-int8 speedAccuracy
+int8 horiz_accuracy
+int8 vert_accuracy
+int8 speed_accuracy
