@@ -1,4 +1,8 @@
 # RemoteID
+
+Default raspberry wifi: concrpi
+senha padrão.
+
 O intuito do Remote ID é prover a identificação de um drone para qualquer parte interessada.
 Tudo é baseado no repositório https://github.com/opendroneid/opendroneid-core-c/ , que tem como base o protocolo criado pela American Society for Testing and Materials International, F3411-22a.
 
